@@ -21,6 +21,12 @@ $$
 \sum_{i=1}^{\text{outputsize}}
 \left[ y_i \log(\hat{y}_i) + (1 - y_i)\log(1 - \hat{y}_i) \right]
 $$
+## 초기화 함수
+### he Initalization
+$$
+w \sim \mathcal{N}\left(0, \sqrt{\frac{2}{\text{fan-in}}}\right)
+$$
+
 ## kernel
 Size : 3 x 3    
 초기화 : He Initialization (Kaiming Initialization)

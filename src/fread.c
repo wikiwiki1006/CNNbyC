@@ -68,6 +68,18 @@ int Freader(MNIST *data) {
         return 0;
     }
 
+void FreeMNIST(MNIST *data)
+    {
+        if (data->images != NULL) {
+            free(data->images);
+            data->images = NULL;
+        }
+        if (data->labels != NULL) {
+            free(data->labels);
+            data->labels = NULL;
+        }
+    }
+    
 void normalize_imgs(MNIST *data, float *norm_data) //이미지 픽셀 값 [0, 1] 정규화  
 {
     unsigned int total;

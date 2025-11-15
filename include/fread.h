@@ -13,5 +13,9 @@ typedef struct{
 
 int Freader(MNIST *data);
 
+void FreeMNIST(MNIST *data);
+
 void normalize_imgs(MNIST *data, float *out_images);
+
+
 #endif

@@ -1,0 +1,3 @@
+/Users/shin-yoonhwan/vscode/C/Cproject/build/CMakeFiles/mnist_reader.dir
+/Users/shin-yoonhwan/vscode/C/Cproject/build/CMakeFiles/edit_cache.dir
+/Users/shin-yoonhwan/vscode/C/Cproject/build/CMakeFiles/rebuild_cache.dir
