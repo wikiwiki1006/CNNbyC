@@ -17,8 +17,8 @@ Normalization : [1, 255] -> [0, 1]
 ## 손실함수
 ### Binary Cross Entropy
 $$
-\text{Loss} = -\frac{1}{{\text{output\_size}}}
-\sum_{i=1}^{\text{output\_size}}
+\text{Loss} = -\frac{1}{{\text{outputsize}}}
+\sum_{i=1}^{\text{outputsize}}
 \left[ y_i \log(\hat{y}_i) + (1 - y_i)\log(1 - \hat{y}_i) \right]
 $$
 ## kernel
