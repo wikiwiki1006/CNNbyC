@@ -1,1 +1,0 @@
-/usr/bin/cc  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/mnist_reader.dir/main.c.o CMakeFiles/mnist_reader.dir/src/layer.c.o CMakeFiles/mnist_reader.dir/src/fread.c.o -o mnist_reader
