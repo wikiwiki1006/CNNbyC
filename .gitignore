@@ -3,6 +3,7 @@
 /test
 /src/reader.dSYM
 /build
+/basecode
 
 #Some of these are related to eclipse. So i keep them out of my repo
 .cproject

@@ -1,27 +1,90 @@
 #ifndef LAYER_H
 #define LAYER_H
 
-// ====커널 층 생성을 위함====
-typedef struct{
-    float *kernel;
+/*  Layer
+ */
+typedef struct _FLayer {
+    
+    int width;
+    int height;
     int n_filter;
-    int row;
-    int col;
+
+    int nnodes;     
+    double* outputs;    
+    double* gradients;    
+    double* errors;      
+
+    int nbiases;      
+    double* biases;         
+
+    int nweights;   
+    double* weights;           
+
+} FLAYER;
+
+typedef struct _FCLayer {
+
+    int nnodes;     
+    double* outputs;    
+    double* gradients;    
+    double* errors;      
+
+    int nbiases;      
+    double* biases;         
+
+    int nweights;   
+    double* weights;           
+
+} FCLAYER;
+
+// 커널 층 생성
+typedef struct{
+    double *k_weight;
+    double *k_bias;
+
+
+    int n_filter;
+    int k_size
 }KERNEL;
 
+// 커널 통과한 합성곱 층 생성
 typedef struct{
-
+    double *outputs; //출력 값 정보
+    double *gradients; //역전파 계산시 grad
+    int out_cwidth;
+    int out_cheight;
 }CONV;
 
+//max pooling층 생성
 typedef struct{
+    double *lpool;
+    int out_pwidth;
+    int out_pheight;
 
 }POOL;
 
-void KernelAddLayer(KERNEL *kernel_layers,  int n_filter, int row, int col);
+static FLAYER* AddFlattenLayer(int n_filter, int width, int height, int nnodes);
 
-void KernelFree(KERNEL *kernel_layers);
+void Layer_destroy(FLAYER* self);
 
-void he_init(float *weights, int fan_in, int fan_out, int total);
+static FCLAYER* AddFCLayer(int nnodes, int prev_nnodes);
+
+void FreeFCLayer(FCLAYER);
+
+static FCLAYER* AddFCLayer(int nnodes, int prev_nnodes);
 
 void FreeKernel(KERNEL *kernel_layer);
+
+void he_init(double *weights, int fan_in, int fan_out, int total);
+
+static CONV* AddConv(int n_filter, int in_width, int in_height, int krow, int kcol, int padding, int stride);
+
+void FreeConv(CONV *conv);
+
+static POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, int padding, int stride);
+
+void FreePool(POOL *pool);
+
+
+
 #endif
