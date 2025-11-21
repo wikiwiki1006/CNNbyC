@@ -8,32 +8,34 @@ typedef struct _FLayer {
     int width;
     int height;
     int n_filter;
+    int nbiases;
+    int nweights;
+    int nnodes;   
 
-    int nnodes;     
     double* outputs;    
     double* gradients;    
     double* errors;      
-
-    int nbiases;      
+        
     double* biases;         
 
-    int nweights;   
     double* weights;           
 
 } FLAYER;
 
 typedef struct _FCLayer {
+    int nnodes;
+    int nbiases;
+    int nweights;
 
-    int nnodes;     
     double* outputs;    
     double* gradients;    
     double* errors;      
-
-    int nbiases;      
+          
     double* biases;         
+    
+    double* weights;    
 
-    int nweights;   
-    double* weights;           
+
 
 } FCLAYER;
 
@@ -42,10 +44,11 @@ typedef struct{
     double *k_weight;
     double *k_bias;
 
+    double* gradients;
 
     int n_filter;
-    int k_size
-}KERNEL;
+    int k_size;
+} KERNEL;
 
 // 커널 통과한 합성곱 층 생성
 typedef struct{
@@ -77,6 +80,8 @@ void FreeKernel(KERNEL *kernel_layer);
 
 void he_init(double *weights, int fan_in, int fan_out, int total);
 
+void kernel_he_init(double *k_weight, int k_size, int n_filter);
+
 static CONV* AddConv(int n_filter, int in_width, int in_height, int krow, int kcol, int padding, int stride);
 
 void FreeConv(CONV *conv);
@@ -84,7 +89,6 @@ void FreeConv(CONV *conv);
 static POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, int padding, int stride);
 
 void FreePool(POOL *pool);
-
 
 
 #endif

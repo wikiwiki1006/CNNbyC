@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stddef.h>
 #include "layer.h"
+#include <assert.h>
+
+
 
 // =======Convolution층과 FC층 연결 노드 생성============
 static FLAYER* AddFlattenLayer(int n_filter, int width, int height, int nnodes)
@@ -184,10 +188,10 @@ void FreePool(POOL *pool){
 
 // 정규분포 난수 생성 by gpt(너무 수학적입니다)
 
-double normal_rand() {
+double normal_rand(void) {
     double u1 = ((double)rand() + 1) / ((double)RAND_MAX + 2.0f);
     double u2 = ((double)rand() + 1) / ((double)RAND_MAX + 2.0f);
-    return sqrtf(-2.0f * logf(u1)) * cosf(2.0f * M_PI * u2);
+    return sqrt(-2.0f * log(u1)) * cos(2.0f * M_PI * u2);
 }
 
 

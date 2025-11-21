@@ -15,7 +15,9 @@ add_executable(mnist_reader
 )
 
 # 컴파일 옵션
-target_compile_options(mnist_reader PRIVATE -Wall -O2)
+target_compile_options(mnist_reader PRIVATE -Wall)
 
 # 데이터 폴더를 build 폴더로 복사 (옵션)
 file(COPY ${CMAKE_SOURCE_DIR}/data DESTINATION ${CMAKE_BINARY_DIR})
+
+add_compile_options("/utf-8")
