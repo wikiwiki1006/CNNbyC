@@ -15,7 +15,7 @@ int Freader(MNIST *data);
 
 void FreeMNIST(MNIST *data);
 
-void normalize_imgs(MNIST *data, float *out_images);
+void normalize_imgs(MNIST *data, double *out_images);
 
 
 #endif

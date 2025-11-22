@@ -9,7 +9,7 @@
 
 
 // =======Convolution층과 FC층 연결 노드 생성============
-static FLAYER* AddFlattenLayer(int n_filter, int width, int height, int nnodes)
+FLAYER* AddFlattenLayer(int n_filter, int width, int height, int nnodes)
 {
     FLAYER* self = (FLAYER*)calloc(1, sizeof(FLAYER));
     if (self == NULL) return NULL;
@@ -17,19 +17,23 @@ static FLAYER* AddFlattenLayer(int n_filter, int width, int height, int nnodes)
     self->n_filter = n_filter;
     self->width = width;
     self->height = height;
-    
+
     /* Nnodes: number of outputs. */
     self->nnodes = nnodes;
-    self->outputs = (double*)calloc(self->nnodes, sizeof(double));
-    self->gradients = (double*)calloc(self->nnodes, sizeof(double));
+    self->outputs = (double*)calloc(nnodes, sizeof(double));
+    
     self->errors = (double*)calloc(self->nnodes, sizeof(double));
 
+    self->gradients = (double*)calloc(self->nnodes, sizeof(double));
+    
     self->nbiases = nnodes;
     self->biases = (double*)calloc(self->nbiases, sizeof(double));
-
+    self->dbiases = (double*)calloc(self->nbiases, sizeof(double));
+    
     self->nweights = n_filter * width * height * nnodes;
     self->weights = (double*)calloc(self->nweights, sizeof(double));
-
+    self->dweights = (double*)calloc(self->nweights, sizeof(double));
+    printf("Flat층 생성 완료");
     return self;
 }
 
@@ -41,7 +45,8 @@ void Layer_destroy(FLAYER* self)
     assert (self != NULL);
 
     free(self->outputs);
-    free(self->gradients);
+    free(self->dweights);
+    free(self->dbiases);
     free(self->errors);
 
     free(self->biases);
@@ -52,7 +57,7 @@ void Layer_destroy(FLAYER* self)
 
 // ============완전 연결 층 생성============
 
-static FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
+FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
 {
     {
     FCLAYER* self = (FCLAYER*)calloc(1, sizeof(FCLAYER));
@@ -60,7 +65,8 @@ static FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
 
     /* Nnodes: number of outputs. */
     self->outputs = (double*)calloc(nnodes, sizeof(double));
-    self->gradients = (double*)calloc(nnodes, sizeof(double));
+    self->dweights = (double*)calloc(nnodes, sizeof(double));
+    self->dbiases = (double*)calloc(nnodes, sizeof(double));
     self->errors = (double*)calloc(nnodes, sizeof(double));
 
     self->nbiases = nnodes;
@@ -69,14 +75,16 @@ static FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
     self->nweights = prev_nnodes * nnodes;
     self->weights = (double*)calloc(self->nweights, sizeof(double));
 
+    printf("FC층 생성 완료");
     return self;
+    
 }
 }
 
 
 // =============kernel층 생성 및 초기화===============
 
-static KERNEL* AddKernelLayer(int n_filter, int k_size)
+KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size)
 {
     // 1) 구조체 자체 할당
     KERNEL *self = calloc(1, sizeof(KERNEL));
@@ -87,29 +95,29 @@ static KERNEL* AddKernelLayer(int n_filter, int k_size)
 
     self->n_filter = n_filter;
     self->k_size   = k_size;
-
+    self->in_c = in_c;
     // 2) weight / bias 크기 계산
-    int fan_in_per_filter = k_size * k_size;               // 입력 채널 1개 가정
-    int total_weights     = n_filter * fan_in_per_filter;  // 전체 weight 개수
+    int fan_in_per_filter = in_c * in_w * in_h;             // 입력 채널 1개 가정
+    int total_weights     = in_c * n_filter * k_size * k_size;  // 전체 weight 개수
 
     // 3) 메모리 할당 (calloc 인자 순서 주의)
-    self->k_weight = calloc(total_weights, sizeof(double));
-    self->k_bias   = calloc(n_filter,      sizeof(double));
+    self->k_weights = calloc(total_weights, sizeof(double));
+    self->k_biases   = calloc(n_filter, sizeof(double));
 
-    if (self->k_weight == NULL || self->k_bias == NULL) {
+    if (self->k_weights == NULL || self->k_biases == NULL) {
         fprintf(stderr, "커널 weight/bias 메모리 할당 실패\n");
-        free(self->k_weight);
-        free(self->k_bias);
+        free(self->k_weights);
+        free(self->k_biases);
         free(self);
         exit(1);
     }
 
     // 4) He 초기화 (fan_in = 필터당 weight 수)
-    kernel_he_init(self->k_weight, k_size, n_filter);
+    kernel_he_init(self->k_weights, k_size, n_filter);
 
     // bias는 보통 0으로 초기화
     for (int i = 0; i < n_filter; i++) {
-        self->k_bias[i] = 0.0;
+        self->k_biases[i] = 0.0;
     }
 
     printf("커널 층 생성 및 초기화 완료\n");
@@ -119,26 +127,34 @@ static KERNEL* AddKernelLayer(int n_filter, int k_size)
 
 void FreeKernel(KERNEL *kernel_layer)
 {
-    if((NULL != kernel_layer->k_weight) && (NULL != kernel_layer->k_bias)){
-        free(kernel_layer->k_weight);
-        free(kernel_layer->k_bias);
-        kernel_layer->k_weight = NULL;
-        kernel_layer->k_bias = NULL;
+    if((NULL != kernel_layer->k_weights) && (NULL != kernel_layer->k_biases)){
+        free(kernel_layer->k_weights);
+        free(kernel_layer->k_biases);
+        kernel_layer->k_weights = NULL;
+        kernel_layer->k_biases = NULL;
     }
 }
 //==================================
 
 // =======convolution 층 생성=========
-static CONV* AddConv(int n_filter, int in_width, int in_height, int krow, int kcol, int padding, int stride)
+CONV* AddConv(int n_filter, int in_width, int in_height, int k_size, int padding, int stride)
 {
     CONV* self = (CONV*) calloc(1, sizeof(CONV));
-    self->out_cheight = ((in_height + 2 * padding - krow) / stride) + 1;
-    self->out_cwidth = ((in_width + 2 * padding - kcol) / stride) + 1;
+    self->padding = padding;
+    self->stride = stride;
+    self->out_cheight = ((in_height + 2 * padding - k_size) / stride) + 1;
+    self->out_cwidth = ((in_width + 2 * padding - k_size) / stride) + 1;
 
-    self->outputs = (double*)calloc(n_filter * in_width * in_height, sizeof(double));
-    self->gradients = (double*)calloc(n_filter * in_width * in_height, sizeof(double));
+    self->channel = n_filter;
+    self->in_width = in_width;
+    self->in_height = in_height;
+
+    self->outputs = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
+    self->z = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
+    self->gradients = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
 
     return self;
+    printf("Conv층 생성 완료");
     
 }
 
@@ -155,7 +171,7 @@ void FreeConv(CONV *conv){
 // ================================
 
 //===========pooling층 생성=============
-static POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, int padding, int stride)
+POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, int padding, int stride)
 {
     POOL* self = (POOL*) calloc(1, sizeof(POOL));
     self->out_pheight = ((in_height + 2 * padding - prow) / stride) + 1;
@@ -205,9 +221,8 @@ void layer_he_init(double *weights, int fan_in, int fan_out)
     printf("초기화 완료\n");
 }
 
-void kernel_he_init(double *weights, int kernel_size, int n_filter)
+void kernel_he_init(double *weights, int fan_in, int n_filter)
 {
-    int fan_in = kernel_size * kernel_size;        // He에서 사용할 fan_in
     double std = sqrt(2.0 / (double)fan_in);
 
     for (int i = 0; i < n_filter; i++) {

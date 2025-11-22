@@ -11,15 +11,16 @@ typedef struct _FLayer {
     int nbiases;
     int nweights;
     int nnodes;   
-
-    double* outputs;    
-    double* gradients;    
-    double* errors;      
-        
+    
     double* biases;         
+    double* weights;
 
-    double* weights;           
-
+    double* outputs; 
+    double* errors;    
+    double* dweights;
+    double* dbiases; 
+    double* gradients;  
+         
 } FLAYER;
 
 typedef struct _FCLayer {
@@ -27,35 +28,44 @@ typedef struct _FCLayer {
     int nbiases;
     int nweights;
 
-    double* outputs;    
-    double* gradients;    
-    double* errors;      
-          
     double* biases;         
-    
     double* weights;    
 
+    double* outputs;      
+    double* errors;     
+    double* dweights;
+    double* dbiases; 
 
 
 } FCLAYER;
 
 // 커널 층 생성
 typedef struct{
-    double *k_weight;
-    double *k_bias;
+    double *k_weights;
+    double *k_biases;
 
-    double* gradients;
+    double* dweights;
+    double *dbiases;
 
     int n_filter;
     int k_size;
+    int in_c
 } KERNEL;
 
 // 커널 통과한 합성곱 층 생성
 typedef struct{
     double *outputs; //출력 값 정보
     double *gradients; //역전파 계산시 grad
+    double *input;
+    double *z;
+
+    int channel;
     int out_cwidth;
     int out_cheight;
+    int in_width;
+    int in_height;
+    int stride;
+    int padding;
 }CONV;
 
 //max pooling층 생성
@@ -66,15 +76,15 @@ typedef struct{
 
 }POOL;
 
-static FLAYER* AddFlattenLayer(int n_filter, int width, int height, int nnodes);
+FLAYER* AddFlattenLayer(int n_filter, int width, int height, int nnodes);
 
 void Layer_destroy(FLAYER* self);
 
-static FCLAYER* AddFCLayer(int nnodes, int prev_nnodes);
+FCLAYER* AddFCLayer(int nnodes, int prev_nnodes);
 
 void FreeFCLayer(FCLAYER);
 
-static FCLAYER* AddFCLayer(int nnodes, int prev_nnodes);
+KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size);
 
 void FreeKernel(KERNEL *kernel_layer);
 
@@ -82,11 +92,11 @@ void he_init(double *weights, int fan_in, int fan_out, int total);
 
 void kernel_he_init(double *k_weight, int k_size, int n_filter);
 
-static CONV* AddConv(int n_filter, int in_width, int in_height, int krow, int kcol, int padding, int stride);
+CONV* AddConv(int n_filter, int in_width, int in_height, int k_size, int padding, int stride);
 
 void FreeConv(CONV *conv);
 
-static POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, int padding, int stride);
+POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, int padding, int stride);
 
 void FreePool(POOL *pool);
 

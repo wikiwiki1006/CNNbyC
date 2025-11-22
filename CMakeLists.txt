@@ -12,6 +12,7 @@ add_executable(mnist_reader
     main.c
     src/layer.c
     src/fread.c
+    src/calc.c
 )
 
 # 컴파일 옵션

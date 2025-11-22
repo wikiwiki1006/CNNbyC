@@ -80,12 +80,12 @@ void FreeMNIST(MNIST *data)
         }
     }
     
-void normalize_imgs(MNIST *data, float *norm_data) //이미지 픽셀 값 [0, 1] 정규화  
+void normalize_imgs(MNIST *data, double *norm_data) //이미지 픽셀 값 [0, 1] 정규화  
 {
     unsigned int total;
     total = data->num_imgs * data->rows * data->cols;
     for(int i = 0; i < total; i++){
-        norm_data[i] = data->images[i] / 255.0f;
+        norm_data[i] = data->images[i] / 255.0;
     }
 }
 

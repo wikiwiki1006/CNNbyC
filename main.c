@@ -3,6 +3,7 @@
 #include <time.h>
 #include "fread.h"
 #include "layer.h"
+#include "calc.h"
 
 #define DEBUG
 
@@ -13,7 +14,7 @@ int main(void) {
         return 1;
     } 
 
-    float *norm_imgs = malloc(sizeof(float) * mnist.num_imgs * mnist.rows * mnist.cols);
+    double *norm_imgs = malloc(sizeof(double) * mnist.num_imgs * mnist.rows * mnist.cols);
     normalize_imgs(&mnist, norm_imgs); // 이미지 픽셀값 [0, 1]정규화
 
     srand((unsigned int)time(NULL)); // 시간 기반 seed 초기화
@@ -23,7 +24,7 @@ int main(void) {
         unsigned int rand_idx = rand() % mnist.num_imgs;
         // 이미지 교환
         for (unsigned int j = 0; j < mnist.rows * mnist.cols; j++) {
-            float temp = norm_imgs[i * mnist.rows * mnist.cols + j];
+            double temp = norm_imgs[i * mnist.rows * mnist.cols + j];
             norm_imgs[i * mnist.rows * mnist.cols + j] = norm_imgs[rand_idx * mnist.rows * mnist.cols + j];
             norm_imgs[rand_idx * mnist.rows * mnist.cols + j] = temp;
         }
@@ -39,7 +40,7 @@ int main(void) {
 	unsigned int val_size = (unsigned int)(mnist.num_imgs * 0.1);
 	unsigned int test_size = mnist.num_imgs - train_size - val_size;
 
-  
+    
     /*
     모델 생성
 	1)  input 1x28x28
@@ -50,16 +51,25 @@ int main(void) {
 	6)  flatten 층 -> output 5408
 	7)  fully connected 층 128노드, ReLU 활성화 함수
 	8)  fully connected 층 10노드, softmax 활성화 함수
+*/
+	KERNEL *kernel1 = AddKernelLayer(1, 28, 28, 32, 3);
+	CONV *conv1 = AddConv(32, 28, 28, 3, 0, 1);
+	POOL *pool1 = AddPool(32, 28, 28, 2, 2, 0, 2);
+	FLAYER *flatten_layer = AddFlattenLayer(32, 14, 14, 128);
+	FCLAYER *fc1 = AddFCLayer(64, 128);
+	FCLAYER *fc2 = AddFCLayer(10, 64);
 
-	psuedo code
-	kernel_layer = AddKernelLayer(32, 3, 3);
-	conv_layer = AddConv(32, 28, 28, 3, 3, 0, 1);
-	pool_layer = AddPool(32, 26, 26, 2, 2, 2);
-	flatten_layer = AddFlattenLayer(32, 13, 13, 5408);
-	fc1_layer = AddFCLayer(128, 5408);
-	fc2_layer = AddFCLayer(10, 128);
-    */
+    ConvForward(conv1, norm_imgs,  kernel1);
+    conv1->z = ReLU(conv1->outputs, conv1->channel * conv1->out_cheight * conv1->out_cwidth);
 
+    double *outputs = conv1->outputs;
+    for(int i = 0; i < 784; i++){
+        printf("%.3f ", outputs[i]);
+    }
+    printf("\n");
+    for(int i = 0; i < 784; i++){
+        printf("%.3f ", conv1->z[i]);
+    }
 	/* 모델 학습
 	* psuedo code
     * 
