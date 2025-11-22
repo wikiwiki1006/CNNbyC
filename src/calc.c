@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stddef.h>
+#include <float.h>
+#include <assert.h>
 #include "layer.h"
 #include "calc.h"
 
@@ -59,7 +61,130 @@ void ConvForward(CONV *conv, double *input, KERNEL *kernel)
             }
         }
     }
-    printf("성공!!!!!!!!");
+    printf("ConvForward성공!!!!!!!!\n");
+}
+//=============풀링 층 forward=============
+void PoolForward(POOL *pool, CONV *conv)
+{
+    int in_c = conv->channel;
+    int in_w = conv->out_cwidth;
+    int in_h = conv->out_cheight;
+    
+    int o_w = pool->out_pwidth;
+    int o_h = pool->out_pheight;
+    int pcol = pool->pcol;
+    int prow = pool->prow;
+    
+    int str = pool->stride;
+    int pad = pool->padding;
+
+    double *input = conv->z;
+
+    for(int ch = 0; ch < in_c; ch++){
+        for(int w = 0; w < o_w; w++){
+            for(int h = 0; h < o_h; h++){
+
+                double max_val = -DBL_MAX;
+                int    max_id  = -1;
+
+                // 이 출력 위치(oh, ow)에 대응하는 입력 window의 시작점
+                int h_start = h * str - pad;
+                int w_start = w * str - pad;
+
+                for (int kh = 0; kh < prow; kh++) {
+                    for (int kw = 0; kw < pcol; kw++) {
+                        int ih = h_start + kh;
+                        int iw = w_start + kw;
+
+                        // 패딩 영역(이미지 밖)은 무시
+                        if (ih < 0 || ih >= in_h || iw < 0 || iw >= in_w)
+                            continue;
+
+                        int in_idx = ch * (in_h * in_w) + ih * in_w + iw;
+                        double v = input[in_idx];
+
+                        if (v > max_val) {
+                            max_val = v;
+                            max_id  = in_idx;   // 입력 배열에서의 절대 인덱스
+                        }
+                    }
+                }
+
+                int out_idx = ch * (o_h * o_w) + h * o_w + w;
+                pool->lpool[out_idx]  = max_val;
+                pool->maxidx[out_idx] = max_id;
+            }
+        }
+    }
+    printf("PoolForward성공!!!!\n");
+}
+//==================================
+
+// ============Flatten Forward============
+
+void FlattenForward(POOL *pool, FLLAYER *fllayer)
+{
+    int in_c = pool->channel;
+    int in_w = pool->out_pwidth;
+    int in_h = pool->out_pheight;
+
+    int nnodes = fllayer->nnodes;
+
+    int expected = in_c * in_h * in_w;
+
+    assert(nnodes == expected); // 앞뒤 레이어의 총 개수 같은지 확인
+
+    for(int c = 0; c < in_c; c++){
+        for(int h = 0; h < in_h; h++){
+            for(int w = 0; w < in_w; w++){
+                fllayer->outputs[(c * in_h * in_w) + (h * in_w) + w]
+                = pool->lpool[(c * in_h * in_w) + (h * in_w) + w];
+            }
+        }
+    }
+    printf("FlattenForward성공!!!!\n");
+}
+
+// ==============FL2FC Forward===========
+void FL2FCForward(FLLAYER *fllayer, FCLAYER *fclayer)
+{
+    int prev_nnodes = fllayer->nnodes;
+    int nnodes = fclayer->nnodes;
+
+
+    assert(prev_nnodes * nnodes == fclayer->nweights); // 실제 앞뒤 레이어 수로 계산한 weight 수와 할당한 weight공간 수 같은 지 확인 
+
+    for(int n = 0; n < nnodes; n++){
+        double sum = 0.0;
+        for(int pn = 0; pn < prev_nnodes; pn++){
+            double out = fllayer->outputs[pn] * fclayer->weights[(n * prev_nnodes) + pn];
+            sum += out;
+        }
+        fclayer->outputs[n] = sum + fclayer->biases[n];
+    }
+    printf("FL2FCForward성공!!!!!\n");
+}
+//======================================
+
+//================FC Forward=========
+void FCForward(FCLAYER *prev_node, FCLAYER *curr_node)
+{
+    int prev_nnodes = prev_node->nnodes;
+    int nnodes = curr_node->nnodes;
+
+    printf("계산한 수%d\n", prev_nnodes * nnodes);
+    printf("실제 수%d\n", curr_node->nweights);
+    assert(prev_nnodes * nnodes == curr_node->nweights); // 실제 앞뒤 레이어 수로 계산한 weight 수와 할당한 weight공간 수 같은 지 확인 
+
+    for(int n = 0; n < nnodes; n++){
+        double sum = 0.0;
+        for(int pn = 0; pn < prev_nnodes; pn++){
+            double out = prev_node->z[pn] * curr_node->weights[(n * prev_nnodes) + pn];
+            sum += out;
+        }
+        curr_node->outputs[n] = sum + curr_node->biases[n];
+    }
+    printf("FCForward 성공!!!!\n");
 }
 
 // ======활성화 함수를 위한 ReLU함수======
@@ -71,7 +196,7 @@ double *ReLU(const double *input, int n_in)
     for (int i = 0; i < n_in; i++) {
         out[i] = (input[i] > 0.0 ? input[i] : 0.0);
     }
-    printf("ReLU성공!!!!");
+    printf("ReLU성공!!!!\n");
     return out; // free(out)해야함
 }
 

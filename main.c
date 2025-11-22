@@ -52,23 +52,50 @@ int main(void) {
 	7)  fully connected 층 128노드, ReLU 활성화 함수
 	8)  fully connected 층 10노드, softmax 활성화 함수
 */
+//================모델 층 생성====================
 	KERNEL *kernel1 = AddKernelLayer(1, 28, 28, 32, 3);
-	CONV *conv1 = AddConv(32, 28, 28, 3, 0, 1);
+	CONV *conv1 = AddConv(32, 28, 28, 3, 1, 1);
 	POOL *pool1 = AddPool(32, 28, 28, 2, 2, 0, 2);
-	FLAYER *flatten_layer = AddFlattenLayer(32, 14, 14, 128);
-	FCLAYER *fc1 = AddFCLayer(64, 128);
-	FCLAYER *fc2 = AddFCLayer(10, 64);
+	FLLAYER *flat = AddFlattenLayer(32, 14, 14);
+    FCLAYER *fc1 = AddFCLayer(128, 6272);
+	FCLAYER *fc2 = AddFCLayer(64, 128);
+	FCLAYER *fc3 = AddFCLayer(10, 64);
+//==============================================
 
     ConvForward(conv1, norm_imgs,  kernel1);
     conv1->z = ReLU(conv1->outputs, conv1->channel * conv1->out_cheight * conv1->out_cwidth);
+    PoolForward(pool1, conv1);
+    FlattenForward(pool1, flat);
+    FL2FCForward(flat, fc1);
+    fc1->z = ReLU(fc1->outputs, fc1->nnodes);
+    FCForward(fc1, fc2);
+    fc2->z = ReLU(fc2->outputs, fc2->nnodes);
+    FCForward(fc2, fc3);
+    fc3->z = SoftMax(fc3->outputs, fc3->nnodes);
 
-    double *outputs = conv1->outputs;
-    for(int i = 0; i < 784; i++){
-        printf("%.3f ", outputs[i]);
+
+    // double *outputs = conv1->outputs;
+    // printf("\n전");
+    // for(int i = 0; i < 784; i++){
+    //     printf("%.3f ", outputs[i]);
+    // }
+    printf("\n후\n");
+    for(int i = 0; i < 28; i++){
+        for(int j = 0; j< 28; j++){
+            printf("%.1f ", conv1->z[28*i + j]);
+        }
+        printf("\n");
+    }
+    printf("\n\n");
+    for(int i = 0; i < 14; i++){
+        for(int j = 0; j< 14; j++){
+            printf("%.1f ", pool1->lpool[14*i + j]);
+        }
+        printf("\n");
     }
     printf("\n");
-    for(int i = 0; i < 784; i++){
-        printf("%.3f ", conv1->z[i]);
+    for(int i = 0; i < fc3->nnodes; i++){
+        printf("%.4f\n", fc3->z[i]);
     }
 	/* 모델 학습
 	* psuedo code

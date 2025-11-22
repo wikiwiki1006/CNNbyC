@@ -3,25 +3,15 @@
 
 /*  Layer
  */
-typedef struct _FLayer {
-    
-    int width;
-    int height;
-    int n_filter;
-    int nbiases;
-    int nweights;
-    int nnodes;   
-    
-    double* biases;         
-    double* weights;
+typedef struct _FLLayer {
 
-    double* outputs; 
-    double* errors;    
-    double* dweights;
-    double* dbiases; 
-    double* gradients;  
-         
-} FLAYER;
+    int in_width;
+    int in_height;
+    int in_channel;
+    int nnodes;   
+    double* outputs;  
+
+} FLLAYER;
 
 typedef struct _FCLayer {
     int nnodes;
@@ -31,7 +21,8 @@ typedef struct _FCLayer {
     double* biases;         
     double* weights;    
 
-    double* outputs;      
+    double* outputs; 
+    double* z;     
     double* errors;     
     double* dweights;
     double* dbiases; 
@@ -49,7 +40,7 @@ typedef struct{
 
     int n_filter;
     int k_size;
-    int in_c
+    int in_c;
 } KERNEL;
 
 // 커널 통과한 합성곱 층 생성
@@ -71,14 +62,22 @@ typedef struct{
 //max pooling층 생성
 typedef struct{
     double *lpool;
+    double *gradients;
+
+    int *maxidx;
+    int pcol;
+    int prow;
+    int padding;
+    int stride;
     int out_pwidth;
     int out_pheight;
+    int channel;
 
 }POOL;
 
-FLAYER* AddFlattenLayer(int n_filter, int width, int height, int nnodes);
+FLLAYER* AddFlattenLayer(int n_filter, int in_width, int in_height);
 
-void Layer_destroy(FLAYER* self);
+void Layer_destroy(FLLAYER* self);
 
 FCLAYER* AddFCLayer(int nnodes, int prev_nnodes);
 
@@ -88,7 +87,7 @@ KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size);
 
 void FreeKernel(KERNEL *kernel_layer);
 
-void he_init(double *weights, int fan_in, int fan_out, int total);
+void layer_he_init(double *weights, int fan_in, int fan_out);
 
 void kernel_he_init(double *k_weight, int k_size, int n_filter);
 

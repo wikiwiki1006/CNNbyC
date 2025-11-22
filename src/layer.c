@@ -9,49 +9,27 @@
 
 
 // =======Convolution층과 FC층 연결 노드 생성============
-FLAYER* AddFlattenLayer(int n_filter, int width, int height, int nnodes)
+FLLAYER* AddFlattenLayer(int in_channel, int in_width, int in_height)
 {
-    FLAYER* self = (FLAYER*)calloc(1, sizeof(FLAYER));
+    FLLAYER* self = (FLLAYER*)calloc(1, sizeof(FLLAYER));
     if (self == NULL) return NULL;
 
-    self->n_filter = n_filter;
-    self->width = width;
-    self->height = height;
+    self->in_channel = in_channel;
+    self->nnodes = in_channel * in_width * in_height;
+    self->outputs = (double*)calloc(self->nnodes, sizeof(double));
 
-    /* Nnodes: number of outputs. */
-    self->nnodes = nnodes;
-    self->outputs = (double*)calloc(nnodes, sizeof(double));
-    
-    self->errors = (double*)calloc(self->nnodes, sizeof(double));
-
-    self->gradients = (double*)calloc(self->nnodes, sizeof(double));
-    
-    self->nbiases = nnodes;
-    self->biases = (double*)calloc(self->nbiases, sizeof(double));
-    self->dbiases = (double*)calloc(self->nbiases, sizeof(double));
-    
-    self->nweights = n_filter * width * height * nnodes;
-    self->weights = (double*)calloc(self->nweights, sizeof(double));
-    self->dweights = (double*)calloc(self->nweights, sizeof(double));
-    printf("Flat층 생성 완료");
+    printf("Flat층 생성 및 초기화 완료\n");
     return self;
-}
+    }
 
 /* Layer_destroy(self)
    Releases the memory.
 */
-void Layer_destroy(FLAYER* self)
+void Layer_destroy(FLLAYER* self)
 {
     assert (self != NULL);
 
     free(self->outputs);
-    free(self->dweights);
-    free(self->dbiases);
-    free(self->errors);
-
-    free(self->biases);
-    free(self->weights);
-
     free(self);
 }
 
@@ -65,6 +43,7 @@ FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
 
     /* Nnodes: number of outputs. */
     self->outputs = (double*)calloc(nnodes, sizeof(double));
+    self->z = (double*)calloc(nnodes, sizeof(double));
     self->dweights = (double*)calloc(nnodes, sizeof(double));
     self->dbiases = (double*)calloc(nnodes, sizeof(double));
     self->errors = (double*)calloc(nnodes, sizeof(double));
@@ -74,11 +53,15 @@ FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
 
     self->nweights = prev_nnodes * nnodes;
     self->weights = (double*)calloc(self->nweights, sizeof(double));
+    self->nnodes = nnodes;
 
-    printf("FC층 생성 완료");
+    layer_he_init(self->weights, prev_nnodes, self->nnodes);
+
+    printf("FC층 생성 및 초기화 완료\n");
+
     return self;
     
-}
+    }
 }
 
 
@@ -153,10 +136,11 @@ CONV* AddConv(int n_filter, int in_width, int in_height, int k_size, int padding
     self->z = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
     self->gradients = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
 
+    printf("Conv층 생성 완료\n");
     return self;
-    printf("Conv층 생성 완료");
     
-}
+    
+    }
 
 void FreeConv(CONV *conv){
     if(conv->outputs == NULL && conv->gradients == NULL) return;
@@ -174,11 +158,19 @@ void FreeConv(CONV *conv){
 POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, int padding, int stride)
 {
     POOL* self = (POOL*) calloc(1, sizeof(POOL));
+    self->prow = prow;
+    self->pcol = pcol;
+    self->padding = padding;
+    self->stride = stride;
     self->out_pheight = ((in_height + 2 * padding - prow) / stride) + 1;
     self->out_pwidth = ((in_width + 2 * padding - pcol) / stride) + 1;
+    self->channel = in_channel;
 
-    self->lpool = (double *)calloc(in_channel * self->out_pwidth * self->out_pheight, sizeof(double));
+    self->maxidx = (int *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(int));
+    self->lpool = (double *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(double));
+    self->gradients = (double *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(double));
 
+    printf("풀링층 생성 완료!!!!!\n");
     return self;
 }
 
@@ -218,7 +210,6 @@ void layer_he_init(double *weights, int fan_in, int fan_out)
     double std = sqrt(2.0f / fan_in);
     for (int i = 0; i < total; i++)
         weights[i] = std * normal_rand();
-    printf("초기화 완료\n");
 }
 
 void kernel_he_init(double *weights, int fan_in, int n_filter)
@@ -231,7 +222,6 @@ void kernel_he_init(double *weights, int fan_in, int n_filter)
             weights[idx] = std * normal_rand();
         }
     }
-    printf("초기화 완료\n");
 }
 // ===================================
 
