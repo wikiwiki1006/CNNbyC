@@ -39,6 +39,7 @@ int Freader(MNIST *data) {
     size_t img_size = data->rows * data->cols;
 
     data->images = (unsigned char *)malloc(data->num_imgs * img_size);
+    data->norm_images = (double *)calloc(data->num_imgs * img_size, sizeof(double));
     data->labels = (unsigned char *)malloc(data->num_imgs);
     fread(data->images, img_size, data->num_imgs, fp_imgs);
     fread(data->labels, 1, data->num_labels, fp_lbls);
@@ -80,12 +81,12 @@ void FreeMNIST(MNIST *data)
         }
     }
     
-void normalize_imgs(MNIST *data, double *norm_data) //이미지 픽셀 값 [0, 1] 정규화  
+void normalize_imgs(MNIST *data) //이미지 픽셀 값 [0, 1] 정규화  
 {
     unsigned int total;
     total = data->num_imgs * data->rows * data->cols;
     for(int i = 0; i < total; i++){
-        norm_data[i] = data->images[i] / 255.0;
+        data->norm_images[i] = data->images[i] / 255.0;
     }
 }
 

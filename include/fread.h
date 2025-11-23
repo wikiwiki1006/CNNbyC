@@ -8,6 +8,7 @@ typedef struct{
     unsigned int num_labels;
     unsigned int rows;
     unsigned int cols;
+    double *norm_images;
     
 }MNIST;
 
@@ -15,7 +16,7 @@ int Freader(MNIST *data);
 
 void FreeMNIST(MNIST *data);
 
-void normalize_imgs(MNIST *data, double *out_images);
+void normalize_imgs(MNIST *data);
 
 
 #endif

@@ -228,23 +228,27 @@ double *SoftMax(const double *input, int n_in)
 // =====배치별 평균 Binary Cross Entropy손실 함수======
 /* 호출 하기 전 y_true값을 double 형인지 확인해야함*/
 
-double BCE(const int *y_true, const double *y_pred, int n)
+double *BCE(const double *y_true, const double *y_pred, int nnodes, int batch)
 {
     const double eps = 1e-7;   // 0, 1에 너무 가까울 때 log 커지는 상황 방지
-    double loss_sum = 0.0;
+    
 
-    for (int i = 0; i < n; i++) {
-        double p = y_pred[i];
+    double *p_loss = calloc(nnodes, sizeof(double));
 
+    for(int node = 0; node < nnodes; node++){
+        double loss_sum = 0.0;
+        for (int bat = 0; bat < batch; bat++) {
+        double p = y_pred[bat * nnodes + node];
+        double t = y_true[bat * nnodes + node];
         // 범위 클리핑
         if (p < eps) p = eps;
         else if (p > 1.0 - eps) p = 1.0 - eps;
 
-        loss_sum += -( y_true[i] * log(p) +
-                       (1.0 - y_true[i]) * log(1.0 - p) );
+        loss_sum += -( t * log(p) +
+                       (1.0 - t) * log(1.0 - p) );
+        }
+        p_loss[node] = (loss_sum / batch);
     }
-
     // 배치 평균 loss
-    return loss_sum / n;
+    return p_loss;
 }
-

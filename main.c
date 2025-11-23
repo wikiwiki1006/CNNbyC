@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <assert.h>
 #include "fread.h"
 #include "layer.h"
 #include "calc.h"
@@ -10,12 +11,9 @@
 int main(void) {
     /* Mnist 데이터 읽어오기*/
     MNIST mnist;
-    if (Freader(&mnist) != 0) {
-        return 1;
-    } 
+    if (Freader(&mnist) != 0) return 1;
 
-    double *norm_imgs = malloc(sizeof(double) * mnist.num_imgs * mnist.rows * mnist.cols);
-    normalize_imgs(&mnist, norm_imgs); // 이미지 픽셀값 [0, 1]정규화
+    normalize_imgs(&mnist); // 이미지 픽셀값 [0, 1]정규화
 
     srand((unsigned int)time(NULL)); // 시간 기반 seed 초기화
 
@@ -24,22 +22,21 @@ int main(void) {
         unsigned int rand_idx = rand() % mnist.num_imgs;
         // 이미지 교환
         for (unsigned int j = 0; j < mnist.rows * mnist.cols; j++) {
-            double temp = norm_imgs[i * mnist.rows * mnist.cols + j];
-            norm_imgs[i * mnist.rows * mnist.cols + j] = norm_imgs[rand_idx * mnist.rows * mnist.cols + j];
-            norm_imgs[rand_idx * mnist.rows * mnist.cols + j] = temp;
+            double temp = mnist.norm_images[i * mnist.rows * mnist.cols + j];
+            mnist.norm_images[i * mnist.rows * mnist.cols + j] = mnist.norm_images[rand_idx * mnist.rows * mnist.cols + j];
+            mnist.norm_images[rand_idx * mnist.rows * mnist.cols + j] = temp;
         }
         // 라벨 교환
         unsigned char temp_label = mnist.labels[i];
         mnist.labels[i] = mnist.labels[rand_idx];
         mnist.labels[rand_idx] = temp_label;
 	}
-    
 
 	// 훈련, 검증, 테스트 데이터셋 분할
-	unsigned int train_size = (unsigned int)(mnist.num_imgs * 0.8);
-	unsigned int val_size = (unsigned int)(mnist.num_imgs * 0.1);
-	unsigned int test_size = mnist.num_imgs - train_size - val_size;
-
+	// unsigned int train_size = (unsigned int)(mnist.num_imgs * 0.8);
+	// unsigned int val_size = (unsigned int)(mnist.num_imgs * 0.1);
+	// unsigned int test_size = mnist.num_imgs - train_size - val_size;
+    unsigned int train_size = 5;
     
     /*
     모델 생성
@@ -59,19 +56,68 @@ int main(void) {
 	FLLAYER *flat = AddFlattenLayer(32, 14, 14);
     FCLAYER *fc1 = AddFCLayer(128, 6272);
 	FCLAYER *fc2 = AddFCLayer(64, 128);
-	FCLAYER *fc3 = AddFCLayer(10, 64);
+	FCLAYER *final = AddFCLayer(10, 64);
 //==============================================
 
-    ConvForward(conv1, norm_imgs,  kernel1);
-    conv1->z = ReLU(conv1->outputs, conv1->channel * conv1->out_cheight * conv1->out_cwidth);
-    PoolForward(pool1, conv1);
-    FlattenForward(pool1, flat);
-    FL2FCForward(flat, fc1);
-    fc1->z = ReLU(fc1->outputs, fc1->nnodes);
-    FCForward(fc1, fc2);
-    fc2->z = ReLU(fc2->outputs, fc2->nnodes);
-    FCForward(fc2, fc3);
-    fc3->z = SoftMax(fc3->outputs, fc3->nnodes);
+    //학습률, 에포크, 배치수
+    double lr = 0.001;
+    unsigned int epoch = 1;
+    unsigned int batch_size = 10;
+    unsigned int batch_;
+    unsigned int iter;
+    unsigned int final_nnodes = final->nnodes;
+    unsigned int pos_img; // 입력 이미지 위치
+    // iteration 계산
+    unsigned int rem = train_size % batch_size;
+    rem == 0 ? (iter = train_size / batch_size) : (iter = train_size / batch_size + 1);
+    for(unsigned int ep = 0; ep < epoch; ep++)
+    {
+        for(unsigned int it = 0; it < iter; it++)
+        { 
+            ((it == (iter - 1)) ? (batch_ = rem) : (batch_ = batch_size)); // 나머지 때문에 마지막 배치수가 지정한 배치 수와 다를 때
+            double *pred = (double *)calloc(final_nnodes * batch_, sizeof(double));
+            double *y_true = (double *)calloc(final_nnodes * batch_, sizeof(double));
+
+            for(unsigned int bat = 0; bat < batch_; bat++)
+            {
+                unsigned int img_idx = (it * batch_size + bat);
+                unsigned int img_size = mnist.cols * mnist.rows;
+                int label = mnist.labels[img_idx];
+                printf("%d\n", label);
+                assert(label >= 0 && label < (int)final_nnodes);
+                y_true[final_nnodes * bat + label] = 1.0;
+                ConvForward(conv1, mnist.norm_images + (img_idx * img_size),  kernel1);
+                conv1->z = ReLU(conv1->outputs, conv1->channel * conv1->out_cheight * conv1->out_cwidth);
+                PoolForward(pool1, conv1);
+                FlattenForward(pool1, flat);
+                FL2FCForward(flat, fc1);
+                fc1->z = ReLU(fc1->outputs, fc1->nnodes);
+                FCForward(fc1, fc2);
+                fc2->z = ReLU(fc2->outputs, fc2->nnodes);
+                FCForward(fc2, final);
+                final->z = SoftMax(final->outputs, final->nnodes);
+                // 배치 수 만큼 y_true_label, pred_label저장
+                for(unsigned int nnode = 0; nnode < final_nnodes; nnode++){
+                    pred[bat * final_nnodes + nnode] = final->z[nnode];
+                }
+                assert(final_nnodes == final->nnodes);
+                final->errors = BCE(y_true, pred, final_nnodes, batch_);
+            
+            }
+            free(pred);
+            free(y_true);
+            // 손실 평균
+            printf("손실값\n");
+            for(int k = 0; k < final_nnodes; k++){
+                printf("%.3f  ", final->errors[k]);
+            }
+            // grad계산
+            // 가중치 업뎃
+            // error 초기화
+        }
+        // error 초기화
+    }
+
 
 
     // double *outputs = conv1->outputs;
@@ -94,8 +140,8 @@ int main(void) {
         printf("\n");
     }
     printf("\n");
-    for(int i = 0; i < fc3->nnodes; i++){
-        printf("%.4f\n", fc3->z[i]);
+    for(int i = 0; i < final->nnodes; i++){
+        printf("%.4f\n", final->z[i]);
     }
 	/* 모델 학습
 	* psuedo code
@@ -134,7 +180,7 @@ int main(void) {
         printf("[%d] LABEL = %d\n", n, mnist.labels[n]);
         for (unsigned int i = 0; i < mnist.rows; i++) {
             for (unsigned int j = 0; j < mnist.cols; j++) {
-                printf("%.2f ", norm_imgs[i * mnist.cols + j]);
+                printf("%.2f ", mnist.norm_images[i * mnist.cols + j]);
             }
             putchar('\n');
         }
@@ -143,7 +189,7 @@ int main(void) {
     #endif
 
     FreeMNIST(&mnist);
-    free(norm_imgs);
+    free(mnist.norm_images);
 
     return 0;
-}
+    }
