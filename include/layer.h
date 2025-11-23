@@ -9,6 +9,8 @@ typedef struct _FLLayer {
     int in_height;
     int in_channel;
     int nnodes;   
+
+    double* delta;
     double* outputs;  
 
 } FLLAYER;
@@ -23,7 +25,7 @@ typedef struct _FCLayer {
 
     double* outputs; 
     double* z;     
-    double* errors;     
+    double* delta;     
     double* dweights;
     double* dbiases; 
 
@@ -62,7 +64,7 @@ typedef struct{
 //max pooling층 생성
 typedef struct{
     double *lpool;
-    double *gradients;
+    double *delta;
 
     int *maxidx;
     int pcol;

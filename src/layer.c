@@ -46,7 +46,7 @@ FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
     self->z = (double*)calloc(nnodes, sizeof(double));
     self->dweights = (double*)calloc(nnodes, sizeof(double));
     self->dbiases = (double*)calloc(nnodes, sizeof(double));
-    self->errors = (double*)calloc(nnodes, sizeof(double));
+    self->delta = (double*)calloc(nnodes, sizeof(double));
 
     self->nbiases = nnodes;
     self->biases = (double*)calloc(self->nbiases, sizeof(double));
@@ -168,7 +168,7 @@ POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, i
 
     self->maxidx = (int *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(int));
     self->lpool = (double *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(double));
-    self->gradients = (double *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(double));
+    self->delta = (double *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(double));
 
     printf("풀링층 생성 완료!!!!!\n");
     return self;

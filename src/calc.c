@@ -187,6 +187,77 @@ void FCForward(FCLAYER *prev_node, FCLAYER *curr_node)
     printf("FCForward 성공!!!!\n");
 }
 
+//===========Convolution Backward========
+
+
+//==========pooling Backward============
+void FL2PLBackward(FLLAYER *curr_layer, POOL *prev_layer)
+{
+    assert(curr_layer->nnodes == (prev_layer->channel * prev_layer->out_pheight * prev_layer->out_pwidth));
+    for(int i = 0; i < curr_layer->nnodes; i++){
+        prev_layer->delta[i] = curr_layer->delta[i];
+    }
+}
+
+//=========FC2FLBackward================
+void FC2FLBackward(FCLAYER *curr_layer, FLLAYER *prev_layer, unsigned int lr)
+{
+    double *delta = curr_layer->delta;
+    double *input = prev_layer->outputs;
+    int prev_nnode = prev_layer->nnodes;
+    int curr_nnode = curr_layer->nnodes;
+
+    // 이전 노드의 delta 업데이트
+    for(int pn = 0; pn < prev_nnode; pn++){
+        double delta = 0.0;
+        for(int cn = 0; cn < curr_nnode; cn++){
+            delta += curr_layer->delta[cn] * curr_layer->weights[cn * prev_nnode + pn];
+        }
+        prev_layer->delta[pn] = delta;
+    }
+
+    // dweight, dbias 계산 및 업데이트
+    for(int cn = 0; cn < curr_nnode; cn++){
+        for(int pn = 0; pn < prev_nnode; pn++){
+            assert((curr_layer->nweights) == (curr_layer->nnodes * prev_layer->nnodes));
+            curr_layer->dweights[cn * prev_nnode + pn] = curr_layer->delta[cn] * prev_layer->outputs[pn]; //dweight 계산
+            curr_layer->weights[cn * prev_nnode + pn] -= lr * curr_layer->dweights[cn * prev_nnode + pn]; //weight 업데이트
+        }
+        curr_layer->dbiases[cn] = curr_layer->delta[cn]; // dbias계산
+        curr_layer->biases[cn] -= lr * curr_layer->dbiases[cn]; // bias업데이트
+    }
+}
+
+//===========FCBackward=================
+void FCBackward(FCLAYER *curr_layer, FCLAYER *prev_layer, unsigned int lr)
+{
+    double *delta = curr_layer->delta;
+    double *input = prev_layer->z;
+    int prev_nnode = prev_layer->nnodes;
+    int curr_nnode = curr_layer->nnodes;
+
+    // 이전 노드의 delta 업데이트
+    for(int pn = 0; pn < prev_nnode; pn++){
+        double delta = 0.0;
+        for(int cn = 0; cn < curr_nnode; cn++){
+            delta += curr_layer->delta[cn] * curr_layer->weights[cn * prev_nnode + pn];
+        }
+        prev_layer->delta[pn] = delta;
+    }
+
+    // dweight, dbias 계산 및 업데이트
+    for(int cn = 0; cn < curr_nnode; cn++){
+        for(int pn = 0; pn < prev_nnode; pn++){
+            assert((curr_layer->nweights) == (curr_layer->nnodes * prev_layer->nnodes));
+            curr_layer->dweights[cn * prev_nnode + pn] = curr_layer->delta[cn] * prev_layer->z[pn]; //dweight 계산
+            curr_layer->weights[cn * prev_nnode + pn] -= lr * curr_layer->dweights[cn * prev_nnode + pn]; //weight 업데이트
+        }
+        curr_layer->dbiases[cn] = curr_layer->delta[cn]; // dbias계산
+        curr_layer->biases[cn] -= lr * curr_layer->dbiases[cn]; // bias업데이트
+    }
+    
+}
+
 // ======활성화 함수를 위한 ReLU함수======
 double *ReLU(const double *input, int n_in)
 {
@@ -251,4 +322,29 @@ double *BCE(const double *y_true, const double *y_pred, int nnodes, int batch)
     }
     // 배치 평균 loss
     return p_loss;
+}
+
+// =========마지막 층에서의 delta값 계산========
+double *FinalDelta(const double *y_true, const double *y_pred, int nnodes, int batch)
+{
+    const double eps = 1e-7;   // 0, 1에 너무 가까울 때 log 커지는 상황 방지
+    
+
+    double *delta = calloc(nnodes, sizeof(double));
+
+    for(int node = 0; node < nnodes; node++){
+        double del = 0.0;
+        for (int bat = 0; bat < batch; bat++) {
+        double p = y_pred[bat * nnodes + node];
+        double t = y_true[bat * nnodes + node];
+        // 범위 클리핑
+        if (p < eps) p = eps;
+        else if (p > 1.0 - eps) p = 1.0 - eps;
+
+        del += (p - t); // del binary_cross_entropy * del softmax 함수
+        }
+        delta[node] = (del / batch);
+    }
+    // 배치 평균 loss
+    return delta;
 }

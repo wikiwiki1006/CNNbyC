@@ -7,6 +7,8 @@
 #include "calc.h"
 
 #define DEBUG
+#define SOFTMAX = 1
+#define RELU = 0
 
 int main(void) {
     /* Mnist 데이터 읽어오기*/
@@ -75,7 +77,7 @@ int main(void) {
         for(unsigned int it = 0; it < iter; it++)
         { 
             ((it == (iter - 1)) ? (batch_ = rem) : (batch_ = batch_size)); // 나머지 때문에 마지막 배치수가 지정한 배치 수와 다를 때
-            double *pred = (double *)calloc(final_nnodes * batch_, sizeof(double));
+            double *y_pred = (double *)calloc(final_nnodes * batch_, sizeof(double));
             double *y_true = (double *)calloc(final_nnodes * batch_, sizeof(double));
 
             for(unsigned int bat = 0; bat < batch_; bat++)
@@ -96,21 +98,25 @@ int main(void) {
                 fc2->z = ReLU(fc2->outputs, fc2->nnodes);
                 FCForward(fc2, final);
                 final->z = SoftMax(final->outputs, final->nnodes);
-                // 배치 수 만큼 y_true_label, pred_label저장
+                // 배치 수 만큼 y_true_label, y_pred_label저장
                 for(unsigned int nnode = 0; nnode < final_nnodes; nnode++){
-                    pred[bat * final_nnodes + nnode] = final->z[nnode];
+                    y_pred[bat * final_nnodes + nnode] = final->z[nnode];
                 }
                 assert(final_nnodes == final->nnodes);
-                final->errors = BCE(y_true, pred, final_nnodes, batch_);
-            
+                // final->errors = BCE(y_true, y_pred, final_nnodes, batch_);
+                final->delta = FinalDelta(y_true, y_pred, final_nnodes, batch_);
             }
-            free(pred);
+            free(y_pred);
             free(y_true);
             // 손실 평균
             printf("손실값\n");
             for(int k = 0; k < final_nnodes; k++){
-                printf("%.3f  ", final->errors[k]);
+                printf("%.3f  ", final->delta[k]);
             }
+            FCBackward(final, fc2, lr);
+            FCBackward(fc2, fc1, lr);
+            FC2FLBackward(fc1, flat, lr);
+            FL2PLBackward(flat, pool1);
             // grad계산
             // 가중치 업뎃
             // error 초기화
