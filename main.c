@@ -6,9 +6,7 @@
 #include "layer.h"
 #include "calc.h"
 
-#define DEBUG
-#define SOFTMAX = 1
-#define RELU = 0
+// #define DEBUG
 
 int main(void) {
     /* Mnist 데이터 읽어오기*/
@@ -38,7 +36,7 @@ int main(void) {
 	// unsigned int train_size = (unsigned int)(mnist.num_imgs * 0.8);
 	// unsigned int val_size = (unsigned int)(mnist.num_imgs * 0.1);
 	// unsigned int test_size = mnist.num_imgs - train_size - val_size;
-    unsigned int train_size = 5;
+    unsigned int train_size = 20;
     
     /*
     모델 생성
@@ -62,9 +60,9 @@ int main(void) {
 //==============================================
 
     //학습률, 에포크, 배치수
-    double lr = 0.001;
-    unsigned int epoch = 1;
-    unsigned int batch_size = 10;
+    double lr = 0.01;
+    unsigned int epoch = 3;
+    unsigned int batch_size = 5;
     unsigned int batch_;
     unsigned int iter;
     unsigned int final_nnodes = final->nnodes;
@@ -77,52 +75,79 @@ int main(void) {
         for(unsigned int it = 0; it < iter; it++)
         { 
             ((it == (iter - 1)) ? (batch_ = rem) : (batch_ = batch_size)); // 나머지 때문에 마지막 배치수가 지정한 배치 수와 다를 때
-            double *y_pred = (double *)calloc(final_nnodes * batch_, sizeof(double));
-            double *y_true = (double *)calloc(final_nnodes * batch_, sizeof(double));
+
+			// dweight, dbias 초기화
+            InitDWeightBias(kernel1->dweights, kernel1->dbiases, kernel1->nweights, kernel1->nbiases);
+            InitDWeightBias(fc1->dweights, fc1->dbiases, fc1->nweights, fc1->nbiases);
+            InitDWeightBias(fc2->dweights, fc2->dbiases, fc2->nweights, fc2->nbiases);
+            InitDWeightBias(final->dweights, final->dbiases, final->nweights, final->nbiases);
 
             for(unsigned int bat = 0; bat < batch_; bat++)
             {
+                InitDelta(fc2->delta, fc2->nnodes);
+				InitDelta(fc1->delta, fc1->nnodes);
+				InitDelta(final->delta, final->nnodes);
+				InitDelta(conv1->delta, conv1->channel * conv1->out_cheight * conv1->out_cwidth);
+
+                double* y_pred = (double*)calloc(final_nnodes, sizeof(double));
+                double* y_true = (double*)calloc(final_nnodes, sizeof(double));
+
                 unsigned int img_idx = (it * batch_size + bat);
                 unsigned int img_size = mnist.cols * mnist.rows;
                 int label = mnist.labels[img_idx];
                 printf("%d\n", label);
                 assert(label >= 0 && label < (int)final_nnodes);
-                y_true[final_nnodes * bat + label] = 1.0;
+                y_true[label] = 1.0;
                 ConvForward(conv1, mnist.norm_images + (img_idx * img_size),  kernel1);
-                conv1->z = ReLU(conv1->outputs, conv1->channel * conv1->out_cheight * conv1->out_cwidth);
+                ReLU(conv1->outputs, conv1->z, conv1->channel * conv1->out_cheight * conv1->out_cwidth);
                 PoolForward(pool1, conv1);
                 FlattenForward(pool1, flat);
                 FL2FCForward(flat, fc1);
-                fc1->z = ReLU(fc1->outputs, fc1->nnodes);
+                ReLU(fc1->outputs, fc1->z, fc1->nnodes);
                 FCForward(fc1, fc2);
-                fc2->z = ReLU(fc2->outputs, fc2->nnodes);
+                ReLU(fc2->outputs, fc2->z, fc2->nnodes);
                 FCForward(fc2, final);
-                final->z = SoftMax(final->outputs, final->nnodes);
+                SoftMax(final->outputs, final->z, final->nnodes);
                 // 배치 수 만큼 y_true_label, y_pred_label저장
                 for(unsigned int nnode = 0; nnode < final_nnodes; nnode++){
-                    y_pred[bat * final_nnodes + nnode] = final->z[nnode];
+                    y_pred[nnode] = final->z[nnode];
                 }
                 assert(final_nnodes == final->nnodes);
                 // final->errors = BCE(y_true, y_pred, final_nnodes, batch_);
-                final->delta = FinalDelta(y_true, y_pred, final_nnodes, batch_);
+                
+                // dweight, dbias 누적
+                FinalDelta(y_true, y_pred, final->delta, final_nnodes, batch_);
+                FCBackward(final, fc2, lr);
+                FCBackward(fc2, fc1, lr);
+                FC2FLBackward(fc1, flat, lr);
+                FL2PLBackward(flat, pool1);
+                PL2CVBackward(pool1, conv1);
+                ConvBackward(conv1, kernel1);
+                free(y_pred);
+                free(y_true);
             }
-            free(y_pred);
-            free(y_true);
+
+			// weight, bias 업데이트
+			UpdateFCWeightsBiases(final, fc2, lr, batch_);
+            UpdateFCWeightsBiases(fc2, fc1, lr, batch_);
+            UpdateFCWeightsBiases(fc1, flat, lr, batch_);
+            UpdateKernelWeightsBiases(kernel1, lr, batch_);
+
+            
             // 손실 평균
             printf("손실값\n");
             for(int k = 0; k < final_nnodes; k++){
                 printf("%.3f  ", final->delta[k]);
             }
-            FCBackward(final, fc2, lr);
-            FCBackward(fc2, fc1, lr);
-            FC2FLBackward(fc1, flat, lr);
-            FL2PLBackward(flat, pool1);
+
             // grad계산
             // 가중치 업뎃
             // error 초기화
         }
         // error 초기화
     }
+
+    // 학습 끝난 뒤, train_size 개 샘플에 대한 정확도 계산
 
 
 
@@ -170,15 +195,7 @@ int main(void) {
 	* 4) 에포크 : 10
 	* 5) 학습률 : 0.001
 	* 6) 검증 데이터셋으로 매 에포크마다 모델 평가
-    */
-    
-
-	/*
-    테스트 데이터셋으로 모델 평가
-	1) 정확도(accuracy) 출력
-    */
-
-
+   */
     printf("\n");
     #ifdef DEBUG
     // 예시: 첫 3개 이미지의 라벨과 픽셀 출력
@@ -193,9 +210,9 @@ int main(void) {
         putchar('\n');
     }
     #endif
-
     FreeMNIST(&mnist);
     free(mnist.norm_images);
 
     return 0;
     }
+   

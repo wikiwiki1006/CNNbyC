@@ -17,6 +17,7 @@ FLLAYER* AddFlattenLayer(int in_channel, int in_width, int in_height)
     self->in_channel = in_channel;
     self->nnodes = in_channel * in_width * in_height;
     self->outputs = (double*)calloc(self->nnodes, sizeof(double));
+	self->delta = (double*)calloc(self->nnodes, sizeof(double));
 
     printf("Flat층 생성 및 초기화 완료\n");
     return self;
@@ -41,19 +42,18 @@ FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
     FCLAYER* self = (FCLAYER*)calloc(1, sizeof(FCLAYER));
     if (self == NULL) return NULL;
 
+    self->nweights = prev_nnodes * nnodes;
+    self->nbiases = nnodes;
+    self->nnodes = nnodes;
+
     /* Nnodes: number of outputs. */
     self->outputs = (double*)calloc(nnodes, sizeof(double));
     self->z = (double*)calloc(nnodes, sizeof(double));
-    self->dweights = (double*)calloc(nnodes, sizeof(double));
-    self->dbiases = (double*)calloc(nnodes, sizeof(double));
-    self->delta = (double*)calloc(nnodes, sizeof(double));
-
-    self->nbiases = nnodes;
+    self->dweights = (double*)calloc(self->nweights, sizeof(double));
+    self->dbiases = (double*)calloc(self->nbiases, sizeof(double));
+    self->delta = (double*)calloc(self->nbiases, sizeof(double));
     self->biases = (double*)calloc(self->nbiases, sizeof(double));
-
-    self->nweights = prev_nnodes * nnodes;
     self->weights = (double*)calloc(self->nweights, sizeof(double));
-    self->nnodes = nnodes;
 
     layer_he_init(self->weights, prev_nnodes, self->nnodes);
 
@@ -80,12 +80,18 @@ KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size)
     self->k_size   = k_size;
     self->in_c = in_c;
     // 2) weight / bias 크기 계산
-    int fan_in_per_filter = in_c * in_w * in_h;             // 입력 채널 1개 가정
+    int fan_in = in_c * k_size * k_size;
     int total_weights     = in_c * n_filter * k_size * k_size;  // 전체 weight 개수
+
+	self->nweights = total_weights;
+	self->nbiases = n_filter;
 
     // 3) 메모리 할당 (calloc 인자 순서 주의)
     self->k_weights = calloc(total_weights, sizeof(double));
     self->k_biases   = calloc(n_filter, sizeof(double));
+    self->dweights = calloc(self->nweights, sizeof(double));
+    self->dbiases = calloc(self->nbiases, sizeof(double));
+
 
     if (self->k_weights == NULL || self->k_biases == NULL) {
         fprintf(stderr, "커널 weight/bias 메모리 할당 실패\n");
@@ -96,7 +102,7 @@ KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size)
     }
 
     // 4) He 초기화 (fan_in = 필터당 weight 수)
-    kernel_he_init(self->k_weights, k_size, n_filter);
+    kernel_he_init(self->k_weights, fan_in, n_filter);
 
     // bias는 보통 0으로 초기화
     for (int i = 0; i < n_filter; i++) {
@@ -134,7 +140,7 @@ CONV* AddConv(int n_filter, int in_width, int in_height, int k_size, int padding
 
     self->outputs = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
     self->z = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
-    self->gradients = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
+    self->delta = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
 
     printf("Conv층 생성 완료\n");
     return self;
@@ -143,11 +149,11 @@ CONV* AddConv(int n_filter, int in_width, int in_height, int k_size, int padding
     }
 
 void FreeConv(CONV *conv){
-    if(conv->outputs == NULL && conv->gradients == NULL) return;
+    if(conv->outputs == NULL && conv->delta == NULL) return;
     free(conv->outputs);
-    free(conv->gradients);
+    free(conv->delta);
     conv->outputs = NULL;
-    conv->gradients = NULL;
+    conv->delta = NULL;
 
     conv->out_cheight = 0;
     conv->out_cwidth = 0;

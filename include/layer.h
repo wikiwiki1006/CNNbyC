@@ -1,8 +1,6 @@
 #ifndef LAYER_H
 #define LAYER_H
 
-/*  Layer
- */
 typedef struct _FLLayer {
 
     int in_width;
@@ -43,12 +41,14 @@ typedef struct{
     int n_filter;
     int k_size;
     int in_c;
+	int nweights;
+	int nbiases;
 } KERNEL;
 
 // 커널 통과한 합성곱 층 생성
 typedef struct{
     double *outputs; //출력 값 정보
-    double *gradients; //역전파 계산시 grad
+    double *delta; //역전파 계산시 delta
     double *input;
     double *z;
 
