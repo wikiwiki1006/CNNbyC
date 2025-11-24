@@ -61,7 +61,7 @@ void ConvForward(CONV *conv, double *input, KERNEL *kernel)
             }
         }
     }
-    printf("ConvForward성공!!!!!!!!\n");
+    // printf("ConvForward성공!!!!!!!!\n");
 }
 //=============풀링 층 forward=============
 void PoolForward(POOL *pool, CONV *conv)
@@ -116,7 +116,7 @@ void PoolForward(POOL *pool, CONV *conv)
             }
         }
     }
-    printf("PoolForward성공!!!!\n");
+    // printf("PoolForward성공!!!!\n");
 }
 //==================================
 
@@ -142,7 +142,7 @@ void FlattenForward(POOL *pool, FLLAYER *fllayer)
             }
         }
     }
-    printf("FlattenForward성공!!!!\n");
+    // printf("FlattenForward성공!!!!\n");
 }
 
 // ==============FL2FC Forward===========
@@ -162,7 +162,7 @@ void FL2FCForward(FLLAYER *fllayer, FCLAYER *fclayer)
         }
         fclayer->outputs[n] = sum + fclayer->biases[n];
     }
-    printf("FL2FCForward성공!!!!!\n");
+    // printf("FL2FCForward성공!!!!!\n");
 }
 //======================================
 
@@ -172,8 +172,8 @@ void FCForward(FCLAYER *prev_node, FCLAYER *curr_node)
     int prev_nnodes = prev_node->nnodes;
     int nnodes = curr_node->nnodes;
 
-    printf("계산한 수%d\n", prev_nnodes * nnodes);
-    printf("실제 수%d\n", curr_node->nweights);
+    // printf("계산한 수%d\n", prev_nnodes * nnodes);
+    // printf("실제 수%d\n", curr_node->nweights);
     assert(prev_nnodes * nnodes == curr_node->nweights); // 실제 앞뒤 레이어 수로 계산한 weight 수와 할당한 weight공간 수 같은 지 확인 
 
     for(int n = 0; n < nnodes; n++){
@@ -184,7 +184,7 @@ void FCForward(FCLAYER *prev_node, FCLAYER *curr_node)
         }
         curr_node->outputs[n] = sum + curr_node->biases[n];
     }
-    printf("FCForward 성공!!!!\n");
+    // printf("FCForward 성공!!!!\n");
 }
 
 //===========Convolution Backward========
@@ -377,7 +377,7 @@ void ReLU(const double *input, double *output, int n_in)
     for (int i = 0; i < n_in; i++) {
         output[i] = (input[i] > 0.0 ? input[i] : 0.0);
     }
-    printf("ReLU성공!!!!\n");
+    // printf("ReLU성공!!!!\n");
 }
 
 // =====마지막 최종 확률을 구하기 위한 SoftMax함수========

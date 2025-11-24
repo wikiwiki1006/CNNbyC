@@ -46,7 +46,7 @@ int Freader(MNIST *data) {
 
 
     #if PRINT
-    for (int k = 0; k < 3; k++) {
+    for (int k = 0; k < 2; k++) {
         printf("label of %dth image: %d\n", k + 1, data->labels[k]);
 
         // 각 이미지의 시작 인덱스 계산

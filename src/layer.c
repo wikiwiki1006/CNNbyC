@@ -19,7 +19,7 @@ FLLAYER* AddFlattenLayer(int in_channel, int in_width, int in_height)
     self->outputs = (double*)calloc(self->nnodes, sizeof(double));
 	self->delta = (double*)calloc(self->nnodes, sizeof(double));
 
-    printf("Flat층 생성 및 초기화 완료\n");
+    // printf("Flat층 생성 및 초기화 완료\n");
     return self;
     }
 
@@ -57,7 +57,7 @@ FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
 
     layer_he_init(self->weights, prev_nnodes, self->nnodes);
 
-    printf("FC층 생성 및 초기화 완료\n");
+    // printf("FC층 생성 및 초기화 완료\n");
 
     return self;
     
@@ -109,7 +109,7 @@ KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size)
         self->k_biases[i] = 0.0;
     }
 
-    printf("커널 층 생성 및 초기화 완료\n");
+    // printf("커널 층 생성 및 초기화 완료\n");
     return self;
 }
 
@@ -142,7 +142,7 @@ CONV* AddConv(int n_filter, int in_width, int in_height, int k_size, int padding
     self->z = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
     self->delta = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
 
-    printf("Conv층 생성 완료\n");
+    // printf("Conv층 생성 완료\n");
     return self;
     
     
@@ -176,7 +176,7 @@ POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, i
     self->lpool = (double *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(double));
     self->delta = (double *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(double));
 
-    printf("풀링층 생성 완료!!!!!\n");
+    // printf("풀링층 생성 완료!!!!!\n");
     return self;
 }
 

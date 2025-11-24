@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
+#include <math.h>
+
 #include "fread.h"
 #include "layer.h"
 #include "calc.h"
@@ -36,7 +38,8 @@ int main(void) {
 	// unsigned int train_size = (unsigned int)(mnist.num_imgs * 0.8);
 	// unsigned int val_size = (unsigned int)(mnist.num_imgs * 0.1);
 	// unsigned int test_size = mnist.num_imgs - train_size - val_size;
-    unsigned int train_size = 20;
+    unsigned int train_size = 15000;
+    unsigned int test_size = 500;
     
     /*
     모델 생성
@@ -49,7 +52,7 @@ int main(void) {
 	7)  fully connected 층 128노드, ReLU 활성화 함수
 	8)  fully connected 층 10노드, softmax 활성화 함수
 */
-//================모델 층 생성====================
+//====================모델 층 생성====================
 	KERNEL *kernel1 = AddKernelLayer(1, 28, 28, 32, 3);
 	CONV *conv1 = AddConv(32, 28, 28, 3, 1, 1);
 	POOL *pool1 = AddPool(32, 28, 28, 2, 2, 0, 2);
@@ -60,27 +63,28 @@ int main(void) {
 //==============================================
 
     //학습률, 에포크, 배치수
-    double lr = 0.01;
+    double lr = 0.1;
     unsigned int epoch = 3;
-    unsigned int batch_size = 5;
+    unsigned int batch_size = 50;
     unsigned int batch_;
     unsigned int iter;
     unsigned int final_nnodes = final->nnodes;
-    unsigned int pos_img; // 입력 이미지 위치
     // iteration 계산
     unsigned int rem = train_size % batch_size;
     rem == 0 ? (iter = train_size / batch_size) : (iter = train_size / batch_size + 1);
     for(unsigned int ep = 0; ep < epoch; ep++)
     {
+        double epoch_loss = 0.0;
+        
         for(unsigned int it = 0; it < iter; it++)
         { 
-            ((it == (iter - 1)) ? (batch_ = rem) : (batch_ = batch_size)); // 나머지 때문에 마지막 배치수가 지정한 배치 수와 다를 때
-
+            ((it == (iter - 1) && rem != 0) ? (batch_ = rem) : (batch_ = batch_size)); // 나머지 때문에 마지막 배치수가 지정한 배치 수와 다를 때
 			// dweight, dbias 초기화
             InitDWeightBias(kernel1->dweights, kernel1->dbiases, kernel1->nweights, kernel1->nbiases);
             InitDWeightBias(fc1->dweights, fc1->dbiases, fc1->nweights, fc1->nbiases);
             InitDWeightBias(fc2->dweights, fc2->dbiases, fc2->nweights, fc2->nbiases);
             InitDWeightBias(final->dweights, final->dbiases, final->nweights, final->nbiases);
+            double batch_loss = 0.0;   // 진짜 cross-entropy 손실
 
             for(unsigned int bat = 0; bat < batch_; bat++)
             {
@@ -95,7 +99,6 @@ int main(void) {
                 unsigned int img_idx = (it * batch_size + bat);
                 unsigned int img_size = mnist.cols * mnist.rows;
                 int label = mnist.labels[img_idx];
-                printf("%d\n", label);
                 assert(label >= 0 && label < (int)final_nnodes);
                 y_true[label] = 1.0;
                 ConvForward(conv1, mnist.norm_images + (img_idx * img_size),  kernel1);
@@ -113,6 +116,11 @@ int main(void) {
                     y_pred[nnode] = final->z[nnode];
                 }
                 assert(final_nnodes == final->nnodes);
+
+                const double eps = 1e-7;
+                double p_true = y_pred[label];
+                if (p_true < eps) p_true = eps;
+                batch_loss += -log(p_true);   // Σ -log(p_true)
                 // final->errors = BCE(y_true, y_pred, final_nnodes, batch_);
                 
                 // dweight, dbias 누적
@@ -125,6 +133,7 @@ int main(void) {
                 ConvBackward(conv1, kernel1);
                 free(y_pred);
                 free(y_true);
+                
             }
 
 			// weight, bias 업데이트
@@ -135,45 +144,71 @@ int main(void) {
 
             
             // 손실 평균
-            printf("손실값\n");
-            for(int k = 0; k < final_nnodes; k++){
-                printf("%.3f  ", final->delta[k]);
+            double loss_per_batch = batch_loss / (double)batch_;
+            
+            printf("iter %u batch_loss = %.6f\n", it, loss_per_batch);
+
+            epoch_loss += loss_per_batch;
+        }
+
+        printf("%d 번째 에포크 완료!\n", ep + 1);
+        printf("epoch loss = %f\n\n", epoch_loss / iter);
+
+    }
+
+
+
+
+    // ========================추론==========================
+
+    int acc = 0;
+
+    printf("추론 시작!!\n");
+
+    for(int k = 0; k < test_size; k++){
+        ConvForward(conv1, mnist.norm_images + ((train_size + k) * 28*28),  kernel1);
+        ReLU(conv1->outputs, conv1->z, conv1->channel * conv1->out_cheight * conv1->out_cwidth);
+        PoolForward(pool1, conv1);
+        FlattenForward(pool1, flat);
+        FL2FCForward(flat, fc1);
+        ReLU(fc1->outputs, fc1->z, fc1->nnodes);
+        FCForward(fc1, fc2);
+        ReLU(fc2->outputs, fc2->z, fc2->nnodes);
+        FCForward(fc2, final);
+        SoftMax(final->outputs, final->z, final->nnodes);
+
+        int max_idx = 0;
+        double max = 0.0;
+
+        for(int i = 0; i < final->nnodes; i++){
+            if(final->z[i] >= max ? ((max_idx = i) && (max = final->z[i])) : (max_idx = max_idx));
+        }
+        
+        if(max_idx == mnist.labels[train_size + k]) acc += 1;
+
+        if((test_size - k) < 5){ // 마지막 샘플 5개 시각화
+            for(int i = 0; i < final->nnodes; i++){
+                printf("%d 확률 : %.5f\n", i, final->z[i]);
+
+                if(final->z[i] >= max) ((max_idx = i) && (max = final->z[i]));
             }
+            
+            printf("\n예측 값 : %d\n", max_idx);
 
-            // grad계산
-            // 가중치 업뎃
-            // error 초기화
+            printf("실제 값 : %d\n", mnist.labels[train_size + k]);
+            for(int i = 0; i < 28; i++){
+                for(int j = 0; j< 28; j++){
+                    double pixel = mnist.norm_images[((train_size + k) *28*28) + (28*i + j)];
+                    putchar(pixel > 0.3 ? '#' : ' ');
+                }
+                printf("\n");
+            }
         }
-        // error 초기화
-    }
 
-    // 학습 끝난 뒤, train_size 개 샘플에 대한 정확도 계산
-
-
-
-    // double *outputs = conv1->outputs;
-    // printf("\n전");
-    // for(int i = 0; i < 784; i++){
-    //     printf("%.3f ", outputs[i]);
-    // }
-    printf("\n후\n");
-    for(int i = 0; i < 28; i++){
-        for(int j = 0; j< 28; j++){
-            printf("%.1f ", conv1->z[28*i + j]);
-        }
-        printf("\n");
     }
-    printf("\n\n");
-    for(int i = 0; i < 14; i++){
-        for(int j = 0; j< 14; j++){
-            printf("%.1f ", pool1->lpool[14*i + j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-    for(int i = 0; i < final->nnodes; i++){
-        printf("%.4f\n", final->z[i]);
-    }
+    double accuracy = (double) acc / (double) test_size;
+    printf("테스트 셋 정확도 : %.5f%%\n", accuracy * 100);
+
 	/* 모델 학습
 	* psuedo code
     * 
@@ -214,5 +249,5 @@ int main(void) {
     free(mnist.norm_images);
 
     return 0;
-    }
+}
    
