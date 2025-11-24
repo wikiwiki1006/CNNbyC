@@ -38,7 +38,7 @@ int main(void) {
 	// unsigned int train_size = (unsigned int)(mnist.num_imgs * 0.8);
 	// unsigned int val_size = (unsigned int)(mnist.num_imgs * 0.1);
 	// unsigned int test_size = mnist.num_imgs - train_size - val_size;
-    unsigned int train_size = 15000;
+    unsigned int train_size = 10000;
     unsigned int test_size = 500;
     
     /*
@@ -181,16 +181,21 @@ int main(void) {
         double max = 0.0;
 
         for(int i = 0; i < final->nnodes; i++){
-            if(final->z[i] >= max ? ((max_idx = i) && (max = final->z[i])) : (max_idx = max_idx));
+            if(final->z[i] >= max) {
+                max_idx = i;
+                max = final->z[i];
+            }
         }
         
         if(max_idx == mnist.labels[train_size + k]) acc += 1;
 
-        if((test_size - k) < 5){ // 마지막 샘플 5개 시각화
+        if((test_size - k) < 10){ // 마지막 샘플 5개 시각화
             for(int i = 0; i < final->nnodes; i++){
                 printf("%d 확률 : %.5f\n", i, final->z[i]);
-
-                if(final->z[i] >= max) ((max_idx = i) && (max = final->z[i]));
+                if(final->z[i] >= max){
+                    max_idx = i;
+                    max = final->z[i];
+                }
             }
             
             printf("\n예측 값 : %d\n", max_idx);
@@ -203,6 +208,7 @@ int main(void) {
                 }
                 printf("\n");
             }
+            printf("\n==========================\n");
         }
 
     }
