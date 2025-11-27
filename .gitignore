@@ -5,6 +5,7 @@
 /build
 /out
 /basecode
+/reader.dSYM
 
 #Some of these are related to eclipse. So i keep them out of my repo
 .cproject
