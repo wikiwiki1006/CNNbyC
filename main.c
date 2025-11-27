@@ -35,22 +35,21 @@ int main(void) {
 	}
 
 	// 훈련, 검증, 테스트 데이터셋 분할
-	// unsigned int train_size = (unsigned int)(mnist.num_imgs * 0.8);
-	// unsigned int val_size = (unsigned int)(mnist.num_imgs * 0.1);
-	// unsigned int test_size = mnist.num_imgs - train_size - val_size;
-    unsigned int train_size = 10000;
-    unsigned int test_size = 500;
-    
+    // 전체 이미지 수 : 60000개
+	unsigned int train_size = (unsigned int)(mnist.num_imgs * 0.8);
+	unsigned int test_size = (unsigned int)(mnist.num_imgs * 0.2);
+
     /*
     모델 생성
 	1)  input 1x28x28
-	2)  kernel conv층 32개, 커널크기 3x3, 스트라이드 1, 패딩 0
-	3)  convolution 층 -> output 32x26x26
+	2)  kernel conv층 32개, 커널크기 3x3, 스트라이드 1, 패딩 1
+	3)  convolution 층 -> output 32x28x28
 	4)  ReLU 활성화 함수
-	5)  max pooling 층, 필터 크기 2x2, 스트라이드 2 -> output 32x13x13
-	6)  flatten 층 -> output 5408
+	5)  max pooling 층, 필터 크기 2x2, 스트라이드 2 -> output 32x14x14
+	6)  flatten 층 -> output 32 x 14 x 14 = 6272
 	7)  fully connected 층 128노드, ReLU 활성화 함수
-	8)  fully connected 층 10노드, softmax 활성화 함수
+    8)  fully connected 층 64노드, ReLU 활성화 함수
+	9)  fully connected 층 10노드, softmax 활성화 함수
 */
 //====================모델 층 생성====================
 	KERNEL *kernel1 = AddKernelLayer(1, 28, 28, 32, 3);
@@ -62,29 +61,29 @@ int main(void) {
 	FCLAYER *final = AddFCLayer(10, 64);
 //==============================================
 
-    //학습률, 에포크, 배치수
-    double lr = 0.1;
-    unsigned int epoch = 3;
-    unsigned int batch_size = 50;
+    //학습률, 에포크, 배치수 설정
+    double lr = 0.05;
+    unsigned int epoch = 5;
+    unsigned int batch_size = 100;
     unsigned int batch_;
     unsigned int iter;
     unsigned int final_nnodes = final->nnodes;
-    // iteration 계산
     unsigned int rem = train_size % batch_size;
+
     rem == 0 ? (iter = train_size / batch_size) : (iter = train_size / batch_size + 1);
     for(unsigned int ep = 0; ep < epoch; ep++)
     {
         double epoch_loss = 0.0;
-        
+        unsigned int processed = 0;
         for(unsigned int it = 0; it < iter; it++)
         { 
             ((it == (iter - 1) && rem != 0) ? (batch_ = rem) : (batch_ = batch_size)); // 나머지 때문에 마지막 배치수가 지정한 배치 수와 다를 때
-			// dweight, dbias 초기화
+			// dweight, dbias 0으로 초기화
             InitDWeightBias(kernel1->dweights, kernel1->dbiases, kernel1->nweights, kernel1->nbiases);
             InitDWeightBias(fc1->dweights, fc1->dbiases, fc1->nweights, fc1->nbiases);
             InitDWeightBias(fc2->dweights, fc2->dbiases, fc2->nweights, fc2->nbiases);
             InitDWeightBias(final->dweights, final->dbiases, final->nweights, final->nbiases);
-            double batch_loss = 0.0;   // 진짜 cross-entropy 손실
+            double batch_loss = 0.0; 
 
             for(unsigned int bat = 0; bat < batch_; bat++)
             {
@@ -120,8 +119,7 @@ int main(void) {
                 const double eps = 1e-7;
                 double p_true = y_pred[label];
                 if (p_true < eps) p_true = eps;
-                batch_loss += -log(p_true);   // Σ -log(p_true)
-                // final->errors = BCE(y_true, y_pred, final_nnodes, batch_);
+                batch_loss += -log(p_true);  // binary-cross-entropy 손실 값 누적
                 
                 // dweight, dbias 누적
                 FinalDelta(y_true, y_pred, final->delta, final_nnodes, batch_);
@@ -133,7 +131,10 @@ int main(void) {
                 ConvBackward(conv1, kernel1);
                 free(y_pred);
                 free(y_true);
-                
+
+                processed++;
+                printf("\r[Epoch %u/%u] %u개 중 %u개 완료 ", ep + 1, epoch, train_size, processed);
+                fflush(stdout); 
             }
 
 			// weight, bias 업데이트
@@ -142,13 +143,13 @@ int main(void) {
             UpdateFCWeightsBiases(fc1, flat, lr, batch_);
             UpdateKernelWeightsBiases(kernel1, lr, batch_);
 
-            
-            // 손실 평균
+            // 배치 당 손실 평균
             double loss_per_batch = batch_loss / (double)batch_;
-            
-            printf("iter %u batch_loss = %.6f\n", it, loss_per_batch);
+            if((it != 0) && (it % 50 == 49)) printf("iter %u batch_loss = %.6f\n", it + 1, loss_per_batch); // 50 iteration 마다 평균 손실 값 출력
 
             epoch_loss += loss_per_batch;
+ 
+
         }
 
         printf("%d 번째 에포크 완료!\n", ep + 1);
@@ -162,8 +163,7 @@ int main(void) {
     // ========================추론==========================
 
     int acc = 0;
-
-    printf("추론 시작!!\n");
+    printf("===============추론 시작=================");
 
     for(int k = 0; k < test_size; k++){
         ConvForward(conv1, mnist.norm_images + ((train_size + k) * 28*28),  kernel1);
@@ -189,7 +189,7 @@ int main(void) {
         
         if(max_idx == mnist.labels[train_size + k]) acc += 1;
 
-        if((test_size - k) < 10){ // 마지막 샘플 5개 시각화
+        if((test_size - k) < 5){ // 마지막 샘플 5개 시각화
             for(int i = 0; i < final->nnodes; i++){
                 printf("%d 확률 : %.5f\n", i, final->z[i]);
                 if(final->z[i] >= max){
@@ -215,42 +215,8 @@ int main(void) {
     double accuracy = (double) acc / (double) test_size;
     printf("테스트 셋 정확도 : %.5f%%\n", accuracy * 100);
 
-	/* 모델 학습
-	* psuedo code
-    * 
-    * //순전파
-	* conv1_forward(norm_imgs, kernel_layer, conv_layer); // conv_layer->outputs에 결과 저장
-	* ReLU_forward(conv_layer);
-	* pool1_forward(conv_layer, pool_layer);
-	* flatten_forward(pool_layer, flatten_layer);
-	* fc1_forward(flatten_layer, fc1_layer);
-    * ReLU_forward(flatten_layer);
-	* fc2_forward(fc1_layer, fc2_layer);
-	* output = SoftMax(fc2_layer->outputs);
-    * 
-    * //역전파
-    * 
-	* 1) 손실함수 : binary cross-entropy
-	* 2) 최적화 기법 : Adam
-	* 3) 배치 크기 : 64
-	* 4) 에포크 : 10
-	* 5) 학습률 : 0.001
-	* 6) 검증 데이터셋으로 매 에포크마다 모델 평가
-   */
     printf("\n");
-    #ifdef DEBUG
-    // 예시: 첫 3개 이미지의 라벨과 픽셀 출력
-    for (int n = 0; n < 3; n++) {
-        printf("[%d] LABEL = %d\n", n, mnist.labels[n]);
-        for (unsigned int i = 0; i < mnist.rows; i++) {
-            for (unsigned int j = 0; j < mnist.cols; j++) {
-                printf("%.2f ", mnist.norm_images[i * mnist.cols + j]);
-            }
-            putchar('\n');
-        }
-        putchar('\n');
-    }
-    #endif
+
     FreeMNIST(&mnist);
     free(mnist.norm_images);
 

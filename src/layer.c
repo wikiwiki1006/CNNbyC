@@ -1,6 +1,7 @@
+#define _USE_MATH_DEFINES
+
 #include <stdio.h>
 #include <stdlib.h>
-#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stddef.h>
 #include "layer.h"
@@ -19,13 +20,9 @@ FLLAYER* AddFlattenLayer(int in_channel, int in_width, int in_height)
     self->outputs = (double*)calloc(self->nnodes, sizeof(double));
 	self->delta = (double*)calloc(self->nnodes, sizeof(double));
 
-    // printf("Flat층 생성 및 초기화 완료\n");
     return self;
     }
 
-/* Layer_destroy(self)
-   Releases the memory.
-*/
 void Layer_destroy(FLLAYER* self)
 {
     assert (self != NULL);
@@ -46,7 +43,6 @@ FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
     self->nbiases = nnodes;
     self->nnodes = nnodes;
 
-    /* Nnodes: number of outputs. */
     self->outputs = (double*)calloc(nnodes, sizeof(double));
     self->z = (double*)calloc(nnodes, sizeof(double));
     self->dweights = (double*)calloc(self->nweights, sizeof(double));
@@ -56,8 +52,6 @@ FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
     self->weights = (double*)calloc(self->nweights, sizeof(double));
 
     layer_he_init(self->weights, prev_nnodes, self->nnodes);
-
-    // printf("FC층 생성 및 초기화 완료\n");
 
     return self;
     
@@ -69,7 +63,6 @@ FCLAYER* AddFCLayer(int nnodes, int prev_nnodes)
 
 KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size)
 {
-    // 1) 구조체 자체 할당
     KERNEL *self = calloc(1, sizeof(KERNEL));
     if (self == NULL) {
         fprintf(stderr, "KERNEL 구조체 할당 실패\n");
@@ -79,14 +72,13 @@ KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size)
     self->n_filter = n_filter;
     self->k_size   = k_size;
     self->in_c = in_c;
-    // 2) weight / bias 크기 계산
     int fan_in = in_c * k_size * k_size;
-    int total_weights     = in_c * n_filter * k_size * k_size;  // 전체 weight 개수
+    int total_weights  = in_c * n_filter * k_size * k_size;  // 전체 weight 개수
 
 	self->nweights = total_weights;
 	self->nbiases = n_filter;
 
-    // 3) 메모리 할당 (calloc 인자 순서 주의)
+    // 메모리 할당
     self->k_weights = calloc(total_weights, sizeof(double));
     self->k_biases   = calloc(n_filter, sizeof(double));
     self->dweights = calloc(self->nweights, sizeof(double));
@@ -101,7 +93,7 @@ KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size)
         exit(1);
     }
 
-    // 4) He 초기화 (fan_in = 필터당 weight 수)
+    // He 초기화 (fan_in = 필터당 weight 수)
     kernel_he_init(self->k_weights, fan_in, n_filter);
 
     // bias는 보통 0으로 초기화
@@ -109,7 +101,6 @@ KERNEL* AddKernelLayer(int in_c, int in_w, int in_h, int n_filter, int k_size)
         self->k_biases[i] = 0.0;
     }
 
-    // printf("커널 층 생성 및 초기화 완료\n");
     return self;
 }
 
@@ -142,7 +133,6 @@ CONV* AddConv(int n_filter, int in_width, int in_height, int k_size, int padding
     self->z = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
     self->delta = (double*)calloc(n_filter * self->out_cwidth * self->out_cheight, sizeof(double));
 
-    // printf("Conv층 생성 완료\n");
     return self;
     
     
@@ -176,7 +166,6 @@ POOL* AddPool(int in_channel, int in_width, int in_height, int prow, int pcol, i
     self->lpool = (double *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(double));
     self->delta = (double *)calloc(self->channel * self->out_pwidth * self->out_pheight, sizeof(double));
 
-    // printf("풀링층 생성 완료!!!!!\n");
     return self;
 }
 
@@ -192,9 +181,9 @@ void FreePool(POOL *pool){
 // ==================================
 
 
-// TODO input과 kenel을 계산해서 conv층으로 만들어주는 함수 구현
+// TODO input과 kenel을 계산해서 conv층으로 만들어주는 함수 구현 -> 완료
 
-// TODO pooling층 계산하는 함수 구현
+// TODO pooling층 계산하는 함수 구현 -> 완료
 
 // TODO FC층 생성 함수 구현 -> 완료
 
@@ -207,7 +196,6 @@ double normal_rand(void) {
     double u2 = ((double)rand() + 1) / ((double)RAND_MAX + 2.0f);
     return sqrt(-2.0f * log(u1)) * cos(2.0f * M_PI * u2);
 }
-
 
 // He 초기화 by gpt(너무 수학적입니다)
 void layer_he_init(double *weights, int fan_in, int fan_out)

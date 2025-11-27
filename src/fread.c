@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "fread.h"
 
-#define PRINT 1 // mnist 3개 그림 출력
+#define PRINT 1 // mnist 1개 그림 출력
 
 /*
 MNIST byte 설명 링크
@@ -19,8 +19,9 @@ unsigned int read_uint(FILE *fp) {
 }
 
 int Freader(MNIST *data) {
-    FILE *fp_imgs = fopen("./data/train_images.idx3-ubyte", "rb");
-    FILE *fp_lbls = fopen("./data/train_labels.idx1-ubyte", "rb");
+
+    FILE *fp_imgs = fopen("/Users/shin-yoonhwan/vscode/C/Cproject/data/train_images.idx3-ubyte", "rb");
+    FILE *fp_lbls = fopen("/Users/shin-yoonhwan/vscode/C/Cproject/data/train_labels.idx1-ubyte", "rb");
 
     if (!fp_imgs || !fp_lbls) {
         printf("파일이 없습니다.\n");
@@ -44,15 +45,14 @@ int Freader(MNIST *data) {
     fread(data->images, img_size, data->num_imgs, fp_imgs);
     fread(data->labels, 1, data->num_labels, fp_lbls);
 
-
     #if PRINT
-    for (int k = 0; k < 2; k++) {
+    // 첫번째 이미지 시각화
+    for (int k = 0; k < 1; k++) {
         printf("label of %dth image: %d\n", k + 1, data->labels[k]);
 
         // 각 이미지의 시작 인덱스 계산
         unsigned char *img_ptr = data->images + k * (data->rows * data->cols);
 
-        // --- 이미지 출력 (28x28) ---
         for (int i = 0; i < data->rows; i++) {
             for (int j = 0; j < data->cols; j++) {
                 unsigned char pixel = img_ptr[i * data->cols + j];

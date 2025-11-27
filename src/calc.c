@@ -22,13 +22,13 @@ void ConvForward(CONV *conv, double *input, KERNEL *kernel)
     int H_out = conv->out_cheight;
     int W_out = conv->out_cwidth;
 
-    double *W = kernel->k_weights;   // [C_out][C_in][k][k]
-    double *B = kernel->k_biases;     // [C_out]
-    double *Y = conv->outputs;      // [C_out][H_out][W_out]
+    double *W = kernel->k_weights; 
+    double *B = kernel->k_biases;  
+    double *Y = conv->outputs; 
 
-    conv->input = input; // backward용 저장
+    conv->input = input;
 
-    // --- Forward ---
+    // forward
     for (int f = 0; f < C_out; f++) {    
         for (int oy = 0; oy < H_out; oy++) {       
             for (int ox = 0; ox < W_out; ox++) {    
@@ -61,8 +61,8 @@ void ConvForward(CONV *conv, double *input, KERNEL *kernel)
             }
         }
     }
-    // printf("ConvForward성공!!!!!!!!\n");
 }
+
 //=============풀링 층 forward=============
 void PoolForward(POOL *pool, CONV *conv)
 {
@@ -87,7 +87,7 @@ void PoolForward(POOL *pool, CONV *conv)
                 double max_val = -DBL_MAX;
                 int    max_id  = -1;
 
-                // 이 출력 위치(oh, ow)에 대응하는 입력 window의 시작점
+                // 이 출력 위치(oh, ow)에 대응하는 입력 시작점
                 int h_start = h * str - pad;
                 int w_start = w * str - pad;
 
@@ -105,7 +105,7 @@ void PoolForward(POOL *pool, CONV *conv)
 
                         if (v > max_val) {
                             max_val = v;
-                            max_id  = in_idx;   // 입력 배열에서의 절대 인덱스
+                            max_id  = in_idx;   // 입력 배열에서의 절대 인덱스(역전파 시 필요)
                         }
                     }
                 }
@@ -116,9 +116,9 @@ void PoolForward(POOL *pool, CONV *conv)
             }
         }
     }
-    // printf("PoolForward성공!!!!\n");
 }
-//==================================
+//=======================================
+
 
 // ============Flatten Forward============
 
@@ -142,7 +142,6 @@ void FlattenForward(POOL *pool, FLLAYER *fllayer)
             }
         }
     }
-    // printf("FlattenForward성공!!!!\n");
 }
 
 // ==============FL2FC Forward===========
@@ -162,18 +161,16 @@ void FL2FCForward(FLLAYER *fllayer, FCLAYER *fclayer)
         }
         fclayer->outputs[n] = sum + fclayer->biases[n];
     }
-    // printf("FL2FCForward성공!!!!!\n");
 }
-//======================================
+//============================================
 
-//================FC Forward=========
+
+//================FC Forward===============
 void FCForward(FCLAYER *prev_node, FCLAYER *curr_node)
 {
     int prev_nnodes = prev_node->nnodes;
     int nnodes = curr_node->nnodes;
 
-    // printf("계산한 수%d\n", prev_nnodes * nnodes);
-    // printf("실제 수%d\n", curr_node->nweights);
     assert(prev_nnodes * nnodes == curr_node->nweights); // 실제 앞뒤 레이어 수로 계산한 weight 수와 할당한 weight공간 수 같은 지 확인 
 
     for(int n = 0; n < nnodes; n++){
@@ -184,10 +181,9 @@ void FCForward(FCLAYER *prev_node, FCLAYER *curr_node)
         }
         curr_node->outputs[n] = sum + curr_node->biases[n];
     }
-    // printf("FCForward 성공!!!!\n");
 }
 
-//===========Convolution Backward========
+//===========from Pooling to Convolution Backward========
 void PL2CVBackward(POOL *curr_layer, CONV *prev_layer)
 {
     assert(curr_layer->channel == prev_layer->channel);
@@ -198,7 +194,7 @@ void PL2CVBackward(POOL *curr_layer, CONV *prev_layer)
 }
 
 
-//==========pooling Backward============
+//==========from flatten to pooling Backward============
 void FL2PLBackward(FLLAYER *curr_layer, POOL *prev_layer)
 {
     assert(curr_layer->nnodes == (prev_layer->channel * prev_layer->out_pheight * prev_layer->out_pwidth));
@@ -207,7 +203,7 @@ void FL2PLBackward(FLLAYER *curr_layer, POOL *prev_layer)
     }
 }
 
-//=========FC2FLBackward================
+//=========from fully connected to flatten Backward================
 void FC2FLBackward(FCLAYER *curr_layer, FLLAYER *prev_layer, double lr)
 {
     double *delta = curr_layer->delta;
@@ -234,7 +230,7 @@ void FC2FLBackward(FCLAYER *curr_layer, FLLAYER *prev_layer, double lr)
     }
 }
 
-//===========FCBackward=================
+//===========fully connected Backward=================
 void FCBackward(FCLAYER *curr_layer, FCLAYER *prev_layer, double lr)
 {
     double *delta = curr_layer->delta;
@@ -272,7 +268,8 @@ void FCBackward(FCLAYER *curr_layer, FCLAYER *prev_layer, double lr)
 }
 
 //=============kernel weight, bias 업데이트=========
-void ConvBackward(CONV* conv, KERNEL* kernel)
+
+void ConvBackward(CONV* conv, KERNEL* kernel) // convolution층 역전파 방식은 구현이 복잡해 gpt의 도움을 받음
 {
     int C_in = kernel->in_c;       // 입력 채널 수
     int C_out = kernel->n_filter;   // 필터 수
@@ -286,13 +283,13 @@ void ConvBackward(CONV* conv, KERNEL* kernel)
     int H_out = conv->out_cheight;
     int W_out = conv->out_cwidth;
 
-    double* input = conv->input;      // [C_in][H_in][W_in]
-    double* dY = conv->delta;      // [C_out][H_out][W_out]  (Pool에서 온 gradient)
+    double* input = conv->input;  
+    double* dY = conv->delta;  
     double* W = kernel->k_weights;
     double* dW = kernel->dweights;
     double* db = kernel->dbiases;
 
-    // 1) Conv층 ReLU 미분 적용: conv->z <= 0 인 위치는 gradient 0
+    // Conv층 ReLU 미분 적용: conv->z <= 0 인 위치는 gradient 0
     for (int f = 0; f < C_out; f++) {
         for (int oy = 0; oy < H_out; oy++) {
             for (int ox = 0; ox < W_out; ox++) {
@@ -310,7 +307,7 @@ void ConvBackward(CONV* conv, KERNEL* kernel)
             for (int ox = 0; ox < W_out; ox++) {
 
                 int out_idx = f * (H_out * W_out) + oy * W_out + ox;
-                double grad_out = dY[out_idx];  // dL/dY[f,oy,ox]
+                double grad_out = dY[out_idx]; 
 
                 if (grad_out == 0.0)
                     continue; // ReLU에서 죽은 뉴런은 스킵해도 됨
@@ -362,7 +359,7 @@ void UpdateKernelWeightsBiases(KERNEL *kernel_layer, double lr, unsigned int bat
 {
     int nweights = kernel_layer->nweights;
     int nbiases = kernel_layer->nbiases;
-    // weight, bias 업데이트
+
     for(int w = 0; w < nweights; w++){
         kernel_layer->k_weights[w] -= lr * (kernel_layer->dweights[w] / batch_size) ; //weight 업데이트
     }
@@ -377,7 +374,6 @@ void ReLU(const double *input, double *output, int n_in)
     for (int i = 0; i < n_in; i++) {
         output[i] = (input[i] > 0.0 ? input[i] : 0.0);
     }
-    // printf("ReLU성공!!!!\n");
 }
 
 // =====마지막 최종 확률을 구하기 위한 SoftMax함수========
@@ -403,7 +399,6 @@ void SoftMax(const double *input, double *output, int n_in)
 
 }
 // =====배치별 평균 Binary Cross Entropy손실 함수======
-// 호출 하기 전 y_true값을 double 형인지 확인해야함
 
 double *BCE(const double *y_true, const double *y_pred, int nnodes, int batch)
 {
