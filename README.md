@@ -34,11 +34,11 @@ Size : 3 x 3
 ## Convolution 층
 size :  
 row = 
+$$  
+\frac{\text{in\_height} + 2 \cdot \text{padding} - \text{k\_size}}{\text{stride}} + 1   
 $$
-\frac{\text{in\_height} + 2 \cdot \text{padding} - \text{k\_size}}{\text{stride}} + 1 $$    
 col =   
-$$
-\frac{\text{in\_width} + 2 \cdot \text{padding} - \text{k\_size}}{\text{stride}} + 1 $$ 
+$$ \frac{\text{in\_width} + 2 \cdot \text{padding} - \text{k\_size}}{\text{stride}} + 1 $$
 
 ## Pooling 층
 
