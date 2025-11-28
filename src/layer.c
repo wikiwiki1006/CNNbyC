@@ -189,7 +189,7 @@ void FreePool(POOL *pool){
 
 // ============ 랜덤 초기화==============
 
-// 정규분포 난수 생성 by gpt(너무 수학적입니다)
+// 정규분포 난수 생성
 
 double normal_rand(void) {
     double u1 = ((double)rand() + 1) / ((double)RAND_MAX + 2.0f);
@@ -197,7 +197,7 @@ double normal_rand(void) {
     return sqrt(-2.0f * log(u1)) * cos(2.0f * M_PI * u2);
 }
 
-// He 초기화 by gpt(너무 수학적입니다)
+// He 초기화
 void layer_he_init(double *weights, int fan_in, int fan_out)
 {
     double total = fan_in * fan_out;

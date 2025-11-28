@@ -29,8 +29,16 @@ $$
 
 ## kernel
 Size : 3 x 3    
-초기화 : He Initialization (Kaiming Initialization)
+초기화 : He Initialization (Kaiming Initialization) 
+
 ## Convolution 층
+size :  
+row = 
+$$
+\frac{\text{in\_height} + 2 \cdot \text{padding} - \text{k\_size}}{\text{stride}} + 1 $$    
+col =   
+$$
+\frac{\text{in\_width} + 2 \cdot \text{padding} - \text{k\_size}}{\text{stride}} + 1 $$ 
 
 ## Pooling 층
 
@@ -38,9 +46,27 @@ Size : 3 x 3
 RELU : max(0, x)
 
 ## Optimizer
+Not used
 
-## 순전파
+## 파일 구조
+```
+Cproject
+├─ CMakeLists.txt
+├─ README.md
+├─ data
+│  ├─ test_images.idx3-ubyte
+│  ├─ test_labels.idx1-ubyte
+│  ├─ train_images.idx3-ubyte
+│  └─ train_labels.idx1-ubyte
+├─ include
+│  ├─ calc.h
+│  ├─ fread.h
+│  └─ layer.h
+├─ src
+│  ├─ calc.c
+│  ├─ fread.c
+│  └─ layer.c
+└─  main.c
 
-## 역전파
 
-## SGD
+```

@@ -10,6 +10,10 @@
 
 // #define DEBUG
 
+/*
+참고 Lenet-5 paper http://vision.stanford.edu/cs598_spring07/papers/Lecun98.pdf
+*/
+
 int main(void) {
     /* Mnist 데이터 읽어오기*/
     MNIST mnist;
