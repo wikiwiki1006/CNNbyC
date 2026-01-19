@@ -269,7 +269,7 @@ void FCBackward(FCLAYER *curr_layer, FCLAYER *prev_layer, double lr)
 
 //=============kernel weight, bias 업데이트=========
 
-void ConvBackward(CONV* conv, KERNEL* kernel) // convolution층 역전파 방식은 구현이 복잡해 gpt의 도움을 받음
+void ConvBackward(CONV* conv, KERNEL* kernel) 
 {
     int C_in = kernel->in_c;       // 입력 채널 수
     int C_out = kernel->n_filter;   // 필터 수
